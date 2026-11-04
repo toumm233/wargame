@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>面对面战棋 · 单机版</title>
+<style>
+/* 战棋 · 视觉样式 */
+:root{
+  --bg:#0b0f17;
+  --panel:rgba(23,30,46,.92);
+  --line:#243049;
+  --txt:#e6edf9;
+  --dim:#8c9ab4;
+  --a:#4c9dff;
+  --a-soft:#17324f;
+  --b:#ff6b6b;
+  --b-soft:#4a1f24;
+  --gold:#ffd166;
+  --ok:#5be08a;
+  --move:#2b6b47;
+  --atk:#8a3038;
+  --shadow:0 10px 30px rgba(0,0,0,.45);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  color:var(--txt);
+  font:14px/1.55 "Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+  background:
+    radial-gradient(1200px 600px at 15% -10%, #16233a 0%, transparent 60%),
+    radial-gradient(900px 500px at 110% 10%, #1a1526 0%, transparent 55%),
+    var(--bg);
+  min-height:100vh;
+}
+
+/* ---------- 布局 ---------- */
+.wrap{
+  display:flex; gap:18px; padding:22px;
+  align-items:flex-start; justify-content:center; flex-wrap:wrap;
+}
+.boardbox{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:16px;
+  box-shadow:var(--shadow);
+}
+.side{
+  width:320px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:16px;
+  box-shadow:var(--shadow);
+}
+
+/* ---------- HUD ---------- */
+.hud{display:flex; gap:8px; align-items:center; margin-bottom:14px; flex-wrap:wrap}
+.tag{
+  padding:5px 11px; border-radius:999px;
+  font-weight:600; font-size:12.5px;
+  border:1px solid transparent; letter-spacing:.2px;
+}
+.tag.a{background:var(--a-soft); color:#bcdcff; border-color:#2c5c8c}
+.tag.b{background:var(--b-soft); color:#ffc9c9; border-color:#7a333a}
+.tag.info{background:#1a2333; color:var(--dim); border-color:#26324a}
+
+/* ---------- 棋盘 ---------- */
+.grid{
+  display:grid;
+  grid-template-columns:22px repeat(5,68px);
+  grid-auto-rows:68px;
+  gap:6px;
+}
+.corner{width:22px}
+.collab,.rowlab{
+  display:flex; align-items:center; justify-content:center;
+  color:#5f6d86; font-size:11px; font-weight:600;
+}
+.cell{
+  position:relative;
+  background:linear-gradient(180deg,#1b2434,#161d2b);
+  border:1px solid #232f45;
+  border-radius:10px;
+  transition:transform .1s, box-shadow .15s, background .15s;
+}
+.cell.half-a{background:linear-gradient(180deg,#172638,#131d2c)}
+.cell.half-b{background:linear-gradient(180deg,#261a1f,#1c1418)}
+.cell.mid{background:linear-gradient(180deg,#161b26,#12161f); border-style:dashed; border-color:#2a3448}
+.cell.wall{
+  background:repeating-linear-gradient(45deg,#121722 0 6px,#0d111a 6px 12px);
+  border-color:#0c1017; cursor:not-allowed;
+}
+.cell.placeable{cursor:pointer; box-shadow:inset 0 0 0 2px #2f7d59, 0 0 12px rgba(47,125,89,.25)}
+.cell.placeable:hover{background:linear-gradient(180deg,#1f3a2d,#16281f); transform:translateY(-1px)}
+.cell.move{
+  background:linear-gradient(180deg,#1f3d2d,#173023);
+  box-shadow:inset 0 0 0 2px var(--move); cursor:pointer;
+}
+.cell.move:hover{background:linear-gradient(180deg,#28503a,#1b3a2a)}
+.cell.atk{box-shadow:inset 0 0 0 2px var(--atk)}
+.cell.target{cursor:crosshair; background:linear-gradient(180deg,#3d1c22,#2a1417)}
+.cell.cand{box-shadow:inset 0 0 0 2px var(--gold), 0 0 14px rgba(255,209,102,.35); cursor:pointer}
+.cell.act{box-shadow:inset 0 0 0 2px var(--gold), 0 0 18px rgba(255,209,102,.45)}
+
+/* ---------- 棋子 ---------- */
+.u{
+  position:absolute; inset:3px; z-index:2;
+  border-radius:9px; padding:3px 4px;
+  display:flex; flex-direction:column; justify-content:space-between;
+  font-size:11px; overflow:hidden;
+  box-shadow:0 4px 10px rgba(0,0,0,.35);
+}
+.u.a{background:linear-gradient(165deg,#2a5d92,#17324c); border:1px solid #4c9dff}
+.u.b{background:linear-gradient(165deg,#8f3438,#4a1a1e); border:1px solid #ff6b6b}
+.u .top{display:flex; align-items:center; gap:3px; line-height:1.1}
+.u .ico{font-size:11px}
+.u .nm{font-weight:700; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.u .hpbar{
+  height:5px; background:rgba(0,0,0,.45); border-radius:4px; overflow:hidden;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
+}
+.u .hpbar>i{display:block; height:100%; border-radius:4px; transition:width .25s}
+.u .hptxt{font-size:9.5px; color:#dbe8ff; text-align:right; letter-spacing:.3px}
+.u .sp{
+  position:absolute; right:3px; bottom:1px;
+  font-size:9px; font-weight:700; color:#1a1206;
+  background:var(--gold); padding:0 4px; border-radius:5px;
+  box-shadow:0 1px 3px rgba(0,0,0,.4);
+}
+
+/* ---------- 龙卷风 ---------- */
+.tornado{
+  position:absolute; inset:4px; z-index:1;
+  border-radius:50%;
+  border:2px dashed #9be7ff;
+  background:radial-gradient(circle at 50% 50%, rgba(155,231,255,.28), rgba(155,231,255,.06));
+  display:flex; align-items:center; justify-content:center;
+  font-size:17px;
+  animation:spin 3.2s linear infinite;
+}
+.tornado.ta{border-color:var(--a); background:radial-gradient(circle,rgba(76,157,255,.28),rgba(76,157,255,.05))}
+.tornado.tb{border-color:var(--b); background:radial-gradient(circle,rgba(255,107,107,.28),rgba(255,107,107,.05))}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- 侧栏 ---------- */
+.side h3{
+  margin:0 0 12px; font-size:15px; font-weight:700;
+  letter-spacing:.3px; color:#cfdcf3;
+}
+.types{display:flex; flex-wrap:wrap; gap:7px; margin-bottom:12px}
+.chip{
+  padding:7px 10px; border-radius:10px;
+  background:linear-gradient(180deg,#202b40,#18202f);
+  border:1px solid #2c3a54;
+  cursor:pointer; font-size:12px; color:#dbe4f5;
+  transition:.12s; text-align:left; line-height:1.3;
+}
+.chip:hover{background:linear-gradient(180deg,#283650,#1d2637); border-color:#3a4c6b}
+.chip.sel{
+  background:linear-gradient(180deg,#2b5480,#1d3a59);
+  border-color:#6fb0ff;
+  box-shadow:0 0 0 2px rgba(111,176,255,.3);
+}
+.chip:disabled{opacity:.32; cursor:not-allowed}
+.chip small{display:block; color:#93a4c0; font-size:10px; margin-top:2px}
+
+.btn{
+  width:100%; padding:10px; border-radius:10px;
+  border:1px solid #33425f;
+  background:linear-gradient(180deg,#222e45,#1a2332);
+  color:#dfe8f7; cursor:pointer; font-size:13px; font-weight:600;
+  margin-top:8px; transition:.12s;
+}
+.btn:hover{background:linear-gradient(180deg,#2b3a56,#212b3d); border-color:#41557a}
+.btn:active{transform:translateY(1px)}
+.btn.primary{
+  background:linear-gradient(180deg,#2f6fae,#21507f);
+  border-color:#4c9dff;
+  box-shadow:0 4px 14px rgba(76,157,255,.25);
+}
+.btn.primary:hover{background:linear-gradient(180deg,#3780c7,#256096)}
+.btn:disabled{opacity:.35; cursor:not-allowed; box-shadow:none}
+
+/* ---------- 血量列表 ---------- */
+.hplist{display:flex; flex-direction:column; gap:5px; margin:10px 0}
+.hprow{
+  display:flex; justify-content:space-between; gap:8px;
+  font-size:12px; color:#a9b8d3;
+  padding:3px 6px; border-radius:6px; background:rgba(255,255,255,.02);
+}
+
+/* ---------- 日志 ---------- */
+.log{
+  height:170px; overflow:auto;
+  background:rgba(10,14,22,.75);
+  border:1px solid #202b40; border-radius:10px;
+  padding:8px 10px; font-size:12px; color:#9fb0cc;
+}
+.log div{padding:3px 0; border-bottom:1px dashed rgba(255,255,255,.05); line-height:1.45}
+.log div:last-child{border-bottom:none}
+.log .a{color:#8ec5ff}
+.log .b{color:#ff9d9d}
+
+/* ---------- 规则 ---------- */
+.rules{font-size:12px; color:var(--dim); line-height:1.8}
+.rules b{color:#cfdcf3}
+
+/* ---------- 联机角标 ---------- */
+.netbadge{
+  position:fixed; right:14px; top:14px; z-index:20;
+  padding:6px 12px; border-radius:999px; font-size:12px;
+  background:rgba(22,30,45,.9); color:#93a4c0;
+  border:1px solid #2b3a54;
+  box-shadow:0 4px 14px rgba(0,0,0,.35);
+  transition:.2s;
+}
+.netbadge.on{background:rgba(20,54,38,.9); color:#8ff0b5; border-color:#2e7d5b}
+
+/* ---------- 小屏 ---------- */
+@media (max-width:900px){
+  .wrap{padding:12px; gap:12px}
+  .grid{grid-template-columns:18px repeat(5,58px); grid-auto-rows:58px; gap:4px}
+  .side{width:100%; max-width:520px}
+}
+
+/* ---------- 手机 ---------- */
+@media (max-width:480px){
+  .wrap{padding:8px; gap:10px}
+  .boardbox{padding:10px; border-radius:14px}
+  .side{padding:12px; border-radius:14px}
+  .grid{grid-template-columns:14px repeat(5,50px); grid-auto-rows:50px; gap:3px}
+  .collab,.rowlab{font-size:9px}
+  .hud{gap:5px; margin-bottom:10px}
+  .tag{font-size:10.5px; padding:4px 8px}
+  .u{inset:2px; padding:2px}
+  .u .nm{font-size:9px}
+  .u .ico{display:none}
+  .u .hptxt{font-size:8px}
+  .u .sp{font-size:8px; padding:0 3px}
+  .chip{font-size:11px; padding:6px 8px}
+  .chip small{display:none}
+  .log{height:120px}
+  .btn{font-size:12px; padding:9px}
+  .cell,.chip,.btn{touch-action:manipulation}
+}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="boardbox">
+    <div class="hud" id="hud"></div>
+    <div class="grid" id="grid"></div>
+  </div>
+  <div class="side">
+    <h3 id="sideTitle">单机 · 双人轮流</h3>
+    <div class="types" id="types"></div>
+    <div style="display:flex;gap:8px;margin-bottom:6px">
+      <button class="btn" id="teamA" style="margin-top:0">放置方：A</button>
+      <button class="btn" id="teamB" style="margin-top:0">放置方：B</button>
+    </div>
+    <div id="hplist" class="hplist"></div>
+    <div class="log" id="log"></div>
+    <button class="btn" id="endBtn">结束行动</button>
+    <button class="btn" id="summonBtn" style="display:none">召唤龙卷风</button>
+    <button class="btn primary" id="readyBtn">准备完毕</button>
+    <button class="btn" id="undoBtn">撤回上一枚</button>
+    <button class="btn" id="restartBtn">重开一局</button>
+    <div class="rules" style="margin-top:12px">
+      <b>规则</b><br>
+      · 每方最多 5 个棋子，<b>可重复选同一种、也可以少放</b><br>
+      · 双方轮流放置，一次一个<br>
+      · 只能放 1–4 行（B）或 8–11 行（A）；5–7 行不可布阵<br>
+      · A5–A7、E5–E7 是障碍格<br>
+      · 双方都点「准备完毕」后开战<br>
+      · 速度 = 移动格数；速度高者先行，同速比全队总速度<br>
+      · 每次行动：移动一次 + 攻击一次
+    </div>
+  </div>
+</div>
+
+<script>
+/* 战棋规则核心：纯逻辑，不碰 DOM、不碰网络。
+   单机与联机共用这一份，避免两边规则跑偏。
+   挂到 window.Game（浏览器）或 module.exports（Node 测试）。 */
+(function (root) {
+  'use strict';
+
+  const COLS = 5, ROWS = 11;
+  const HALF = { A: [7, 10], B: [0, 3] };            // 第 5~7 行（下标 4~6）不可布阵
+  const MAX_UNITS = 5;                                // 每方最多 5 个，可以少放
+  const BLOCKED = new Set(['4,0', '5,0', '6,0', '4,4', '5,4', '6,4']);
+  const isBlocked = (r, c) => BLOCKED.has(r + ',' + c);
+
+  const RING8 = [];
+  for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (dr || dc) RING8.push([dr, dc]);
+
+  // 游侠：3 宽 × 4 长的矩形，可朝上下左右任意方向；自己站在靠内那一边的中间
+  function rangerShape(dir) {
+    const out = [];
+    for (let i = 0; i <= 3; i++) {          // 0 = 自己所在那一行/列
+      for (let j = -1; j <= 1; j++) {
+        if (i === 0 && j === 0) continue;   // 去掉自己脚下
+        if (dir === 'up') out.push([-i, j]);
+        else if (dir === 'down') out.push([i, j]);
+        else if (dir === 'left') out.push([j, -i]);
+        else out.push([j, i]);              // right
+      }
+    }
+    return out;
+  }
+  const RANGER_DIRS = { up: rangerShape('up'), down: rangerShape('down'), left: rangerShape('left'), right: rangerShape('right') };
+  const RANGER_OFFSETS = [];
+  (function () {
+    const seen = new Set();
+    for (const dir of Object.keys(RANGER_DIRS)) {
+      for (const [dr, dc] of RANGER_DIRS[dir]) {
+        const k = dr + ',' + dc;
+        if (seen.has(k)) continue;
+        seen.add(k); RANGER_OFFSETS.push([dr, dc]);
+      }
+    }
+  })();
+
+  const CROSS2 = [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2]];
+  const ADJ4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+
+  const TYPES = {
+    hero:     { name: '勇者',  hp: 25, atk: 5,  spd: 5, range: 'adj4',     desc: '相邻 1 格' },
+    elf:      { name: '精灵',  hp: 5,  atk: 10, spd: 1, range: 'ray',      desc: '前后左右无限，只打第一个' },
+    ranger:   { name: '游侠',  hp: 8,  atk: 5,  spd: 4, range: 'ranger10', desc: '3×4 范围 11 格任选，可打 2 人' },
+    mage:     { name: '魔导师', hp: 5,  atk: 8,  spd: 1, range: 'cross2',   desc: '十字 2 格' },
+    sorcerer: { name: '魔法师', hp: 8,  atk: 5,  spd: 2, range: 'ring8',    desc: '周围 8 格任选，可召唤龙卷风' },
+  };
+  const ORDER = ['hero', 'elf', 'ranger', 'mage', 'sorcerer'];
+
+  let S = null;
+
+  const inBoard = (r, c) => r >= 0 && r < ROWS && c >= 0 && c < COLS;
+  const key = (r, c) => r * COLS + c;
+  const cellName = (r, c) => String.fromCharCode(65 + c) + (r + 1);
+  const unitAt = (r, c, ignoreId) => S.units.find(x => x.alive && x.r === r && x.c === c && x.id !== ignoreId) || null;
+  const unitById = id => S.units.find(u => u.id === id);
+  const aliveUnits = team => S.units.filter(u => u.alive && (!team || u.team === team));
+  const teamUnits = team => S.units.filter(u => u.team === team);
+  const teamTotal = team => aliveUnits(team).reduce((s, u) => s + u.spd, 0);
+
+  function newGame() {
+    S = {
+      phase: 'setup', round: 0, units: [], nextId: 1,
+      ready: { A: false, B: false },
+      turn: 'A',
+      pick: { A: null, B: null },
+      active: null, reach: [], targets: [], cands: [], queue: [],
+      tornadoes: { A: null, B: null }, summoned: { A: false, B: false },
+      winner: null, log: [],
+    };
+    log('sys', '布阵阶段：双方各自放棋子（最多 5 个，可重复、可少放），放完点「准备」。');
+    return S;
+  }
+
+  function log(team, text) {
+    S.log.push({ team, text });
+    if (S.log.length > 200) S.log.shift();
+  }
+
+  function makeUnit(team, type, r, c) {
+    const t = TYPES[type];
+    return { id: S.nextId++, team, type, r, c, hp: t.hp, maxHp: t.hp, atk: t.atk, spd: t.spd, alive: true, killed: 0 };
+  }
+
+  /* ---------- 布阵 ---------- */
+  function pickType(team, t) {
+    if (S.phase !== 'setup' || S.ready[team]) return false;   // 选子可以预选，真正限制在放置
+    if (!TYPES[t]) return false;
+    if (teamUnits(team).length >= MAX_UNITS) return false;
+    S.pick[team] = t;
+    return true;
+  }
+
+  function placeUnit(team, r, c) {
+    if (S.phase !== 'setup' || S.ready[team] || S.turn !== team) return false;
+    const t = S.pick[team];
+    if (!t) return false;
+    const range = HALF[team];
+    if (r < range[0] || r > range[1]) { log('sys', '只能放在自己的半场。'); return false; }
+    if (isBlocked(r, c)) { log('sys', '这格不能放。'); return false; }
+    if (unitAt(r, c)) { log('sys', '这里已经有棋子了。'); return false; }
+    if (teamUnits(team).length >= MAX_UNITS) { log('sys', '每方最多 5 个棋子。'); return false; }
+
+    S.units.push(makeUnit(team, t, r, c));
+    S.pick[team] = null;
+    log(team, team + ' 放下' + TYPES[t].name + ' 于 ' + cellName(r, c) + '（' + teamUnits(team).length + '/' + MAX_UNITS + '）');
+    nextTurn(team);
+    return true;
+  }
+
+  function removeLast(team) {
+    if (S.phase !== 'setup' || S.ready[team]) return false;
+    const owned = teamUnits(team);
+    if (!owned.length) return false;
+    const u = owned[owned.length - 1];
+    S.units = S.units.filter(x => x.id !== u.id);
+    log(team, '撤回 ' + TYPES[u.type].name + '（' + team + ' 现有 ' + teamUnits(team).length + '/' + MAX_UNITS + '）');
+    return true;
+  }
+
+  function readyUp(team) {
+    if (S.phase !== 'setup' || S.ready[team]) return false;
+    if (teamUnits(team).length < 1) { log('sys', team + ' 方至少要放一个棋子。'); return false; }
+    S.ready[team] = true;
+    log(team, team + ' 方准备完毕（' + teamUnits(team).length + ' 个棋子）');
+    if (S.ready.A && S.ready.B) { startBattle(); return true; }
+    nextTurn(team);
+    return true;
+  }
+
+  function nextTurn(team) {
+    const other = team === 'A' ? 'B' : 'A';
+    if (!S.ready[other]) S.turn = other;
+  }
+
+  function unready(team) {
+    if (S.phase !== 'setup' || !S.ready[team]) return false;
+    if (S.ready.A && S.ready.B) return false;
+    S.ready[team] = false;
+    S.turn = team;
+    log(team, team + ' 方取消准备');
+    return true;
+  }
+
+  /* ---------- 战斗 ---------- */
+  function startBattle() {
+    S.phase = 'battle';
+    log('sys', '双方准备完毕，战斗开始！');
+    startRound();
+  }
+
+  function startRound() {
+    S.round++;
+    S.active = null; S.reach = []; S.targets = []; S.cands = [];
+    const alive = aliveUnits();
+    const totals = { A: teamTotal('A'), B: teamTotal('B') };
+    alive.sort((x, y) => y.spd - x.spd || totals[y.team] - totals[x.team] || (x.team < y.team ? -1 : 1) || x.id - y.id);
+    S.queue = alive.map(u => u.id);
+    log('sys', '—— 第 ' + S.round + ' 回合 ——');
+    nextActivation();
+  }
+
+  function nextActivation() {
+    if (checkWin()) return;
+    while (S.queue.length && !(unitById(S.queue[0]) || {}).alive) S.queue.shift();
+    if (S.queue.length === 0) { endRound(); return; }
+    const head = unitById(S.queue[0]);
+    const same = S.queue.map(unitById).filter(u => u && u.spd === head.spd && u.team === head.team);
+    if (same.length > 1) {
+      S.cands = same.map(u => u.id);
+      S.active = null; S.reach = []; S.targets = [];
+      log(head.team, '同速单位，请选择先动哪一个。');
+      return;
+    }
+    activate(head.id);
+  }
+
+  function activate(id) {
+    const u = unitById(id);
+    if (!u) return;
+    S.cands = []; S.active = id; S.attacked = false;
+    S.reach = reachable(u); S.targets = [];
+    log(u.team, '轮到 ' + u.team + ' 的' + TYPES[u.type].name + '（' + u.hp + '/' + u.maxHp + '）');
+  }
+
+  function endActivation() {
+    if (!S.active) return;
+    S.queue = S.queue.filter(id => id !== S.active);
+    S.active = null; S.reach = []; S.targets = []; S.cands = [];
+    nextActivation();
+  }
+
+  function reachable(u) {
+    const seen = new Set([key(u.r, u.c)]);
+    const out = [];
+    let frontier = [[u.r, u.c, 0]];
+    while (frontier.length) {
+      const next = [];
+      for (const [r, c, d] of frontier) {
+        if (d >= u.spd) continue;
+        for (const [dr, dc] of ADJ4) {
+          const nr = r + dr, nc = c + dc, k = key(nr, nc);
+          if (!inBoard(nr, nc) || seen.has(k)) continue;
+          if (isBlocked(nr, nc) || unitAt(nr, nc)) continue;
+          seen.add(k); out.push([nr, nc]); next.push([nr, nc, d + 1]);
+        }
+      }
+      frontier = next;
+    }
+    return out;
+  }
+
+  function moveTo(r, c) {
+    const u = unitById(S.active);
+    if (!u) return false;
+    if (!S.reach.some(p => p[0] === r && p[1] === c)) return false;
+    u.r = r; u.c = c;
+    S.reach = []; S.targets = attackTargets(u);
+    log(u.team, TYPES[u.type].name + ' 移动至 ' + cellName(r, c));
+    return true;
+  }
+
+  // 精灵：四个方向无限远，友方棋子不挡路，只被「第一个敌人」截断
+  function rayCells(u) {
+    const out = [];
+    const maxStep = Math.max(ROWS, COLS) + 2;
+    for (const [dr, dc] of ADJ4) {
+      for (let i = 1; i <= maxStep; i++) {
+        const r = u.r + dr * i, c = u.c + dc * i;
+        if (!inBoard(r, c)) break;
+        if (isBlocked(r, c)) break;            // 障碍照样挡
+        const occ = unitAt(r, c);
+        if (!occ) continue;
+        if (occ.team === u.team) continue;     // 友方穿过，不挡
+        out.push([r, c]); break;               // 第一个敌人，到此为止
+      }
+    }
+    return out;
+  }
+
+  function offsetCells(u, offsets) {
+    const out = [];
+    for (const [dr, dc] of offsets) {
+      const r = u.r + dr, c = u.c + dc;
+      if (inBoard(r, c) && !isBlocked(r, c)) out.push([r, c]);
+    }
+    return out;
+  }
+
+  function attackCells(u) {
+    if (!u) return [];
+    switch (TYPES[u.type].range) {
+      case 'adj4': return offsetCells(u, ADJ4);
+      case 'cross2': return offsetCells(u, CROSS2);
+      case 'ring8': return offsetCells(u, RING8);
+      case 'ranger10': return offsetCells(u, RANGER_OFFSETS);
+      case 'ray': return rayCells(u);
+      default: return [];
+    }
+  }
+
+  function attackTargets(u) {
+    const set = new Set(attackCells(u).map(p => key(p[0], p[1])));
+    return S.units.filter(x => x.alive && x.team !== u.team && set.has(key(x.r, x.c))).map(x => x.id);
+  }
+
+  /** 游侠：选定一个方向（覆盖被点击的目标、且该方向内敌人最多），返回该方向内的敌人 */
+  function rangerTargets(u, targetId) {
+    const target = unitById(targetId);
+    let best = null, bestCount = -1;
+    for (const dir of Object.keys(RANGER_DIRS)) {
+      const cells = offsetCells(u, RANGER_DIRS[dir]);
+      const set = new Set(cells.map(p => key(p[0], p[1])));
+      const inside = S.units.filter(x => x.alive && x.team !== u.team && set.has(key(x.r, x.c)));
+      const covers = target && target.alive && set.has(key(target.r, target.c));
+      if (!covers) continue;
+      if (inside.length > bestCount) { bestCount = inside.length; best = inside; }
+    }
+    if (best) return best;
+    return [];
+  }
+
+  function doAttack(targetId) {
+    const u = unitById(S.active);
+    if (!u || S.attacked) return false;
+    const set = new Set(attackCells(u).map(p => key(p[0], p[1])));
+    let targets = S.units.filter(x => x.alive && x.team !== u.team && set.has(key(x.r, x.c)));
+    if (u.type === 'ranger') {
+      targets = rangerTargets(u, targetId).slice(0, 2);
+    } else {
+      const picked = unitById(targetId);
+      if (!picked) return false;
+      targets = [picked];
+    }
+    if (!targets.length) return false;
+
+    S.attacked = true;
+    for (const t of targets) {
+      t.hp -= u.atk;
+      log(u.team, TYPES[u.type].name + ' 攻击 ' + TYPES[t.type].name + '，造成 ' + u.atk + ' 伤害（剩 ' + Math.max(0, t.hp) + '/' + t.maxHp + '）');
+      if (t.hp <= 0) {
+        t.alive = false; t.hp = 0;
+        log(u.team, TYPES[t.type].name + ' 被击倒！');
+        if (u.type === 'ranger') {
+          u.killed++; u.spd += 1; u.atk += 2;
+          log(u.team, '游侠击杀成长：速度 +1、攻击 +2（现 ' + u.spd + ' 速 / ' + u.atk + ' 攻）');
+        }
+      }
+    }
+    checkWin();
+    return true;
+  }
+
+  /* ---------- 龙卷风 ---------- */
+  function summonTornado() {
+    const u = unitById(S.active);
+    if (!u || u.type !== 'sorcerer') return false;
+    const team = u.team;
+    if (S.summoned[team]) return false;
+    const spots = [];
+    for (const [dr, dc] of RING8) {
+      const r = u.r + dr, c = u.c + dc;
+      if (inBoard(r, c) && !isBlocked(r, c) && !unitAt(r, c)) spots.push([r, c]);
+    }
+    if (!spots.length) return false;
+    S.tornadoes[team] = { r: spots[0][0], c: spots[0][1], team };
+    S.summoned[team] = true;
+    log(team, '魔法师召唤了 3×3 龙卷风（' + cellName(spots[0][0], spots[0][1]) + '）');
+    return true;
+  }
+
+  function tornadoTick() {
+    for (const team of ['A', 'B']) {
+      const tw = S.tornadoes[team];
+      if (!tw) continue;
+      const r = tw.r, c = tw.c;
+      let hit = 0;
+      for (const u of aliveUnits()) {
+        if (u.team === team) continue;
+        if (Math.abs(u.r - r) <= 1 && Math.abs(u.c - c) <= 1) {
+          u.hp -= 5; hit++;
+          log(team, '龙卷风撕扯 ' + TYPES[u.type].name + ' 5 点（剩 ' + Math.max(0, u.hp) + '/' + u.maxHp + '）');
+          if (u.hp <= 0) { u.alive = false; u.hp = 0; log(team, TYPES[u.type].name + ' 被龙卷风击倒！'); }
+        }
+      }
+      if (hit === 0) log(team, '龙卷风空转，范围内没有敌人。');
+      const enemies = aliveUnits(team === 'A' ? 'B' : 'A');
+      if (enemies.length) {
+        let best = enemies[0], bd = 1e9;
+        for (const e of enemies) {
+          const d = Math.abs(e.r - r) + Math.abs(e.c - c);
+          if (d < bd) { bd = d; best = e; }
+        }
+        const dr = Math.sign(best.r - r), dc = Math.sign(best.c - c);
+        for (const step of [[dr, dc], [dr, 0], [0, dc]]) {
+          if (!step[0] && !step[1]) continue;
+          const nr = r + step[0], nc = c + step[1];
+          if (inBoard(nr, nc) && !isBlocked(nr, nc) && !unitAt(nr, nc)) { tw.r = nr; tw.c = nc; break; }
+        }
+      }
+    }
+  }
+
+  function endRound() {
+    log('sys', '—— 第 ' + S.round + ' 回合结束 ——');
+    tornadoTick();
+    if (checkWin()) return;
+    startRound();
+  }
+
+  function checkWin() {
+    if (S.phase === 'over') return true;
+    const a = aliveUnits('A').length, b = aliveUnits('B').length;
+    if (a === 0 || b === 0) {
+      S.phase = 'over';
+      S.winner = a === 0 ? (b === 0 ? 'draw' : 'B') : 'A';
+      log('sys', S.winner === 'draw' ? '平局！' : (S.winner + ' 方获胜！'));
+      return true;
+    }
+    return false;
+  }
+
+  /* ---------- 战斗阶段的一次点击 ---------- */
+  function applyClick(r, c) {
+    if (S.phase !== 'battle') return false;
+    const occ = unitAt(r, c);
+    if (!S.active && S.cands.length) {
+      if (occ && S.cands.indexOf(occ.id) >= 0) { activate(occ.id); return true; }
+      return false;
+    }
+    if (!S.active) return false;
+    if (S.reach.some(p => p[0] === r && p[1] === c)) return moveTo(r, c);
+    if (occ && occ.team !== unitById(S.active).team) {
+      if (attackTargets(unitById(S.active)).indexOf(occ.id) >= 0) return doAttack(occ.id);
+    }
+    return false;
+  }
+
+  const api = {
+    COLS, ROWS, HALF, BLOCKED, TYPES, ORDER, MAX_UNITS,
+    isBlocked, cellName, unitAt, unitById, aliveUnits, teamUnits, teamTotal,
+    newGame, getState: () => S, setState: s => { S = s; }, log,
+    pickType, placeUnit, removeLast, readyUp, unready,
+    startBattle, startRound, nextActivation, activate, endActivation,
+    reachable, moveTo, attackCells, attackTargets, doAttack, applyClick,
+    summonTornado, tornadoTick, endRound, checkWin,
+  };
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.Game = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* 战棋界面层：把 Game.getState() 画出来，把点击交回调用方。
+   cfg = {
+     online: bool,
+     team: () => 'A'|'B',        // 当前该由谁操作（单机是切换的，联机固定本方）
+     isMyTurn: () => bool,       // 战斗阶段能否操作
+     onPick(team, type), onPlace(team, r, c), onUndo(team),
+     onReady(team), onUnready(team),
+     onCell(r, c), onEnd(), onSummon(), onRestart()
+   } */
+(function (root) {
+  'use strict';
+  const G = root.Game;
+  const ICONS = { hero: '⚔', elf: '✨', ranger: '🏹', mage: '🔮', sorcerer: '🌀' };
+
+  function h(tag, cls, text) {
+    const el = document.createElement(tag);
+    if (cls) el.className = cls;
+    if (text !== undefined) el.textContent = text;
+    return el;
+  }
+
+  function render(cfg) {
+    const S = G.getState();
+    const online = !!cfg.online;
+    const teamOf = cfg.team || (() => 'A');
+    const cur = teamOf();
+    const mine = cfg.isMyTurn ? cfg.isMyTurn() : true;
+    const activeUnit = S.active ? G.unitById(S.active) : null;
+
+    /* ---- HUD ---- */
+    const hud = document.getElementById('hud');
+    hud.innerHTML = '';
+    if (S.phase === 'setup') {
+      hud.appendChild(h('span', 'tag info', '布阵阶段'));
+      hud.appendChild(h('span', 'tag ' + cur.toLowerCase(), '当前操作：' + cur + ' 方'));
+      hud.appendChild(h('span', 'tag info',
+        'A ' + G.teamUnits('A').length + '/' + G.MAX_UNITS + (S.ready.A ? ' ✔已准备' : '') +
+        ' · B ' + G.teamUnits('B').length + '/' + G.MAX_UNITS + (S.ready.B ? ' ✔已准备' : '')));
+      if (S.turn === cur && !S.ready[cur]) hud.appendChild(h('span', 'tag ' + cur.toLowerCase(), '轮到你放置'));
+      else if (!S.ready[cur]) hud.appendChild(h('span', 'tag info', '等待对方放置…'));
+      else hud.appendChild(h('span', 'tag info', '已准备，等待对方…'));
+    } else if (S.phase === 'battle') {
+      hud.appendChild(h('span', 'tag info', '第 ' + S.round + ' 回合'));
+      if (activeUnit) hud.appendChild(h('span', 'tag ' + activeUnit.team.toLowerCase(), '行动中：' + activeUnit.team + ' 方 ' + G.TYPES[activeUnit.type].name));
+      else hud.appendChild(h('span', 'tag info', '等待选择单位'));
+      hud.appendChild(h('span', 'tag info', '队列剩余 ' + S.queue.length));
+    } else {
+      hud.appendChild(h('span', 'tag info', '对局结束'));
+      hud.appendChild(h('span', 'tag ' + (S.winner === 'B' ? 'b' : 'a'), S.winner === 'draw' ? '平局' : S.winner + ' 方获胜'));
+    }
+
+    /* ---- 棋子按钮 ---- */
+    const chips = document.getElementById('types');
+    chips.innerHTML = '';
+    if (S.phase === 'setup') {
+      const locked = S.ready[cur];
+      const full = G.teamUnits(cur).length >= G.MAX_UNITS;
+      G.ORDER.forEach(function (t) {
+        const b = h('button', 'chip' + (S.pick[cur] === t ? ' sel' : ''));
+        b.disabled = locked || full || S.turn !== cur;
+        b.innerHTML = G.TYPES[t].name + ' <small>' + G.TYPES[t].hp + '血 ' + G.TYPES[t].atk + '攻 ' + G.TYPES[t].spd + '速</small>';
+        b.onclick = function () { if (cfg.onPick) cfg.onPick(cur, t); };
+        chips.appendChild(b);
+      });
+    }
+
+    /* ---- 棋盘 ---- */
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+    grid.appendChild(h('div', 'corner'));
+    for (let c = 0; c < G.COLS; c++) grid.appendChild(h('div', 'collab', String.fromCharCode(65 + c)));
+
+    const atkSet = activeUnit ? new Set(G.attackCells(activeUnit).map(function (p) { return p[0] * G.COLS + p[1]; })) : new Set();
+
+    for (let r = 0; r < G.ROWS; r++) {
+      grid.appendChild(h('div', 'rowlab', String(r + 1)));
+      for (let c = 0; c < G.COLS; c++) {
+        const cell = h('div', 'cell');
+        cell.dataset.r = r; cell.dataset.c = c;
+        if (r <= G.HALF.B[1]) cell.classList.add('half-b');
+        else if (r >= G.HALF.A[0]) cell.classList.add('half-a');
+        else cell.classList.add('mid');
+
+        if (G.isBlocked(r, c)) {
+          cell.classList.add('wall');
+          cell.innerHTML = '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#6b7893;font-size:20px">✕</span>';
+          grid.appendChild(cell);
+          continue;
+        }
+
+        if (S.phase === 'setup') {
+          const range = G.HALF[cur];
+          const canPlace = !S.ready[cur] && S.turn === cur && G.teamUnits(cur).length < G.MAX_UNITS;
+          if (canPlace && r >= range[0] && r <= range[1] && !G.unitAt(r, c)) cell.classList.add('placeable');
+        }
+        if (S.reach.some(function (p) { return p[0] === r && p[1] === c; })) cell.classList.add('move');
+        if (activeUnit && atkSet.has(r * G.COLS + c)) {
+          cell.classList.add('atk');
+          const t = G.unitAt(r, c);
+          if (t && t.team !== activeUnit.team) cell.classList.add('target');
+        }
+        const occ0 = G.unitAt(r, c);
+        if (occ0 && S.cands.indexOf(occ0.id) >= 0) cell.classList.add('cand');
+        if (activeUnit && activeUnit.r === r && activeUnit.c === c) cell.classList.add('act');
+
+        const tw = [S.tornadoes.A, S.tornadoes.B].filter(Boolean).filter(function (x) { return x.r === r && x.c === c; })[0];
+        if (tw) cell.appendChild(h('div', 'tornado ' + (tw.team === 'A' ? 'ta' : 'tb'), '🌪'));
+
+        const occ = G.unitAt(r, c);
+        if (occ) {
+          const el = h('div', 'u ' + occ.team.toLowerCase());
+          const pct = Math.max(0, occ.hp / occ.maxHp * 100);
+          const color = pct > 50 ? '#5be08a' : pct > 25 ? '#ffd166' : '#ff6b6b';
+          el.innerHTML = '<div class="top"><span class="ico">' + (ICONS[occ.type] || '') + '</span>'
+            + '<span class="nm">' + G.TYPES[occ.type].name + '</span></div>'
+            + '<div class="hpbar"><i style="width:' + pct + '%;background:' + color + '"></i></div>'
+            + '<div class="hptxt">' + Math.max(0, occ.hp) + '/' + occ.maxHp + '</div>'
+            + '<div class="sp">' + occ.spd + '</div>';
+          cell.appendChild(el);
+        }
+
+        cell.onclick = (function (rr, cc) { return function () { if (cfg.onCell) cfg.onCell(rr, cc); }; })(r, c);
+        grid.appendChild(cell);
+      }
+    }
+
+    /* ---- 血量与准备状态 ---- */
+    const hp = document.getElementById('hplist');
+    hp.innerHTML = '';
+    ['B', 'A'].forEach(function (team) {
+      const list = G.aliveUnits(team);
+      if (!list.length && S.phase === 'setup') {
+        hp.appendChild(h('div', 'hprow', team + ' 方：还没放棋子')).style.cssText = 'font-size:12px;color:#7f8fad;margin:4px 0';
+        return;
+      }
+      if (!list.length) return;
+      const head = h('div', '', team + ' 方（总速度 ' + G.teamTotal(team) + '）' + (S.phase === 'setup' && S.ready[team] ? ' · 已准备' : ''));
+      head.style.cssText = 'font-size:11px;color:#7f8fad;margin:6px 0 2px';
+      hp.appendChild(head);
+      list.slice().sort(function (x, y) { return y.spd - x.spd; }).forEach(function (u) {
+        const row = h('div', 'hprow');
+        row.innerHTML = '<span>' + G.TYPES[u.type].name + (u.killed ? '（' + u.killed + '杀）' : '') + '</span>'
+          + '<span>' + Math.max(0, u.hp) + '/' + u.maxHp + ' · ' + u.spd + '速</span>';
+        hp.appendChild(row);
+      });
+    });
+
+    /* ---- 日志 ---- */
+    const logEl = document.getElementById('log');
+    logEl.innerHTML = S.log.slice(-60).map(function (l) {
+      const cls = l.team === 'A' ? 'a' : l.team === 'B' ? 'b' : '';
+      return '<div class="' + cls + '">' + l.text + '</div>';
+    }).join('');
+    logEl.scrollTop = logEl.scrollHeight;
+
+    /* ---- 按钮 ---- */
+    const endBtn = document.getElementById('endBtn');
+    const summonBtn = document.getElementById('summonBtn');
+    const readyBtn = document.getElementById('readyBtn');
+    const undoBtn = document.getElementById('undoBtn');
+
+    const inSetup = S.phase === 'setup';
+    endBtn.style.display = inSetup ? 'none' : 'block';
+    endBtn.disabled = !S.active || !mine;
+    summonBtn.style.display = (activeUnit && activeUnit.type === 'sorcerer' && !S.summoned[activeUnit.team] && mine) ? 'block' : 'none';
+
+    if (readyBtn) {
+      readyBtn.style.display = inSetup ? 'block' : 'none';
+      if (inSetup) {
+        readyBtn.textContent = S.ready[cur] ? '已准备 · 点此取消' : '准备完毕';
+        readyBtn.disabled = false;
+      }
+    }
+    if (undoBtn) {
+      undoBtn.style.display = (inSetup && !S.ready[cur] && G.teamUnits(cur).length > 0) ? 'block' : 'none';
+    }
+
+    if (online) document.getElementById('netbadge').style.display = 'block';
+  }
+
+  function MY_TEAM_SAFE(cfg) { return cfg.myTeam || 'B'; }
+
+  root.UI = { render };
+})(window);
+
+</script>
+<script>
+
+(function () {
+  'use strict';
+  const G = window.Game;
+  let currentTeam = 'A';
+
+  function paintTeamButtons() {
+    document.getElementById('teamA').style.background = currentTeam === 'A' ? '#2c5c8a' : '';
+    document.getElementById('teamB').style.background = currentTeam === 'B' ? '#7d2a2a' : '';
+  }
+
+  function refresh() {
+    const st = G.getState();
+    if (st.phase === 'setup') currentTeam = st.turn;
+    UI.render({
+      online: false,
+      team: function () { return currentTeam; },
+      isMyTurn: function () { return true; },
+      onPick: function (team, t) { G.pickType(team, t); refresh(); },
+      onPlace: function (team, r, c) { G.placeUnit(team, r, c); refresh(); },
+      onUndo: function () { undoLast(); refresh(); },
+      onReady: function (team) {
+        const S = G.getState();
+        if (S.ready[team]) G.unready(team); else G.readyUp(team);
+        refresh();
+      },
+      onCell: function (r, c) {
+        const S = G.getState();
+        if (S.phase === 'setup') G.placeUnit(currentTeam, r, c);
+        else G.applyClick(r, c);
+        refresh();
+      },
+      onEnd: function () { G.endActivation(); refresh(); },
+      onSummon: function () { G.summonTornado(); refresh(); },
+      onRestart: function () { if (confirm('确定重开？')) { G.newGame(); currentTeam = 'A'; refresh(); } },
+    });
+    paintTeamButtons();
+  }
+
+    // 单机是两个人共用一台机器：撤回永远撤掉「最后放下的那一枚」
+  function undoLast() {
+    const st = G.getState();
+    if (!st.units.length) return;
+    const last = st.units[st.units.length - 1];
+    G.removeLast(last.team);
+  }
+
+  function setTeam(t) {
+    const st = G.getState();
+    if (st.phase === 'setup') return;   // 布阵阶段轮次由规则决定，不能手动切
+    currentTeam = t; refresh();
+  }
+
+  document.getElementById('teamA').onclick = function () { setTeam('A'); };
+  document.getElementById('teamB').onclick = function () { setTeam('B'); };
+  document.getElementById('endBtn').onclick = function () { G.endActivation(); refresh(); };
+  document.getElementById('summonBtn').onclick = function () { G.summonTornado(); refresh(); };
+  document.getElementById('readyBtn').onclick = function () {
+    const S = G.getState();
+    if (S.ready[currentTeam]) G.unready(currentTeam);
+    else {
+      G.readyUp(currentTeam);
+      const other = currentTeam === 'A' ? 'B' : 'A';
+      if (G.getState().phase === 'setup' && !G.getState().ready[other]) currentTeam = other;
+    }
+    refresh();
+  };
+  document.getElementById('undoBtn').onclick = function () { undoLast(); refresh(); };
+  document.getElementById('restartBtn').onclick = function () { if (confirm('确定重开？')) { G.newGame(); currentTeam = 'A'; refresh(); } };
+
+  G.newGame();
+  refresh();
+})();
+
+</script>
+</body>
+</html>
