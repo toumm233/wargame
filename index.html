@@ -327,6 +327,7 @@ body{
     <button class="btn" id="endBtn">结束行动</button>
     <button class="btn" id="summonBtn" style="display:none">召唤龙卷风</button>
     <button class="btn" id="paladinHealBtn" style="display:none">治疗队友</button>
+    <button class="btn" id="moveSkipBtn" style="display:none">龙卷风跳过移动</button>
     <button class="btn primary" id="readyBtn">准备完毕</button>
     <button class="btn" id="codexBtn">角色图鉴</button>
     <button class="btn" id="undoBtn">撤回上一枚</button>
@@ -1511,13 +1512,8 @@ body{
   document.getElementById('teamA').onclick = function () { setTeam('A'); };
   document.getElementById('teamB').onclick = function () { setTeam('B'); };
   document.getElementById('endBtn').onclick = function () { G.endActivation(); refresh(); };
-  document.getElementById('paladinHealBtn').onclick = function () {
-    const S = G.getState();
-    if (S.healingFrom) return;
-    if (ROLE === 'guest') { send({ type: 'beginHeal' }); return; }
-    G.beginHeal(); refresh();
-  };
-  document.getElementById('paladinHealBtn').onclick = function () { G.beginHeal(); refresh(); };
+
+  const _ph = document.getElementById('paladinHealBtn'); if (_ph) _ph.onclick = function () { G.beginHeal(); refresh(); };
   document.getElementById('summonBtn').onclick = function () { G.beginSummon(); refresh(); };
   document.getElementById('readyBtn').onclick = function () {
     const S = G.getState();
@@ -1529,13 +1525,13 @@ body{
     }
     refresh();
   };
-  document.getElementById('moveSkipBtn').onclick = function () {
+  const _ms = document.getElementById('moveSkipBtn'); if (_ms) _ms.onclick = function () {
     const S = G.getState();
     if (S.pendingMove) G.skipTornadoMove(S.pendingMove.team);
     refresh();
   };
   document.getElementById('undoBtn').onclick = function () { undoLast(); refresh(); };
-  document.getElementById('codexBtn').onclick = function () { UI.openCodex(); };
+  const _cb = document.getElementById('codexBtn'); if (_cb) _cb.onclick = function () { UI.openCodex(); };
   document.getElementById('restartBtn').onclick = function () { if (confirm('确定重开？')) { G.newGame(); currentTeam = 'A'; refresh(); } };
 
   G.newGame();
