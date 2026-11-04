@@ -104,6 +104,22 @@ body{
 .cell.atk{box-shadow:inset 0 0 0 2px var(--atk)}
 .cell.target{cursor:crosshair; background:linear-gradient(180deg,#3d1c22,#2a1417)}
 .cell.cand{box-shadow:inset 0 0 0 2px var(--gold), 0 0 14px rgba(255,209,102,.35); cursor:pointer}
+
+/* 龙卷风预警：淡红覆盖 */
+.cell.warn::after{
+  content:''; position:absolute; inset:0; border-radius:9px;
+  background:rgba(255,90,90,.13);
+  box-shadow:inset 0 0 0 1px rgba(255,90,90,.28);
+  pointer-events:none;
+}
+/* 可放龙卷风的位置 */
+.cell.summonable{cursor:pointer}
+.cell.summonable::after{
+  content:''; position:absolute; inset:0; border-radius:9px;
+  background:rgba(120,220,255,.16);
+  box-shadow:inset 0 0 0 2px rgba(120,220,255,.55);
+  pointer-events:none;
+}
 .cell.act{box-shadow:inset 0 0 0 2px var(--gold), 0 0 18px rgba(255,209,102,.45)}
 
 /* ---------- 棋子 ---------- */
@@ -118,18 +134,19 @@ body{
 .u.b{background:linear-gradient(165deg,#8f3438,#4a1a1e); border:1px solid #ff6b6b}
 .u .top{display:flex; align-items:center; gap:3px; line-height:1.1}
 .u .ico{font-size:11px}
-.u .nm{font-weight:700; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.u .nm{font-weight:700; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-right:15px}
 .u .hpbar{
   height:5px; background:rgba(0,0,0,.45); border-radius:4px; overflow:hidden;
   box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
 }
 .u .hpbar>i{display:block; height:100%; border-radius:4px; transition:width .25s}
-.u .hptxt{font-size:9.5px; color:#dbe8ff; text-align:right; letter-spacing:.3px}
+.u .hptxt{font-size:9.5px; color:#dbe8ff; text-align:right; letter-spacing:.3px; line-height:1.2}
 .u .sp{
-  position:absolute; right:3px; bottom:1px;
+  position:absolute; right:2px; top:1px;
   font-size:9px; font-weight:700; color:#1a1206;
   background:var(--gold); padding:0 4px; border-radius:5px;
   box-shadow:0 1px 3px rgba(0,0,0,.4);
+  line-height:1.35;
 }
 
 /* ---------- 龙卷风 ---------- */
@@ -248,6 +265,48 @@ body{
   .cell,.chip,.btn{touch-action:manipulation}
 }
 
+/* ---------- 图鉴 ---------- */
+.codex-mask{
+  position:fixed; inset:0; z-index:50;
+  background:rgba(6,9,14,.78);
+  display:none; align-items:center; justify-content:center;
+  padding:24px;
+}
+.codex-panel{
+  width:min(880px,100%); max-height:86vh; overflow:auto;
+  background:linear-gradient(180deg,#182033,#131a28);
+  border:1px solid #2b3a54; border-radius:16px;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);
+  padding:18px;
+}
+.codex-head{display:flex; align-items:center; gap:12px; margin-bottom:14px}
+.codex-head b{font-size:16px}
+.codex-tip{color:#7f8fad; font-size:12px}
+.codex-close{
+  margin-left:auto; padding:7px 14px; border-radius:8px;
+  border:1px solid #3a4b6b; background:#24314a; color:#dbe4f5;
+  cursor:pointer; font-size:13px;
+}
+.codex-close:hover{background:#31415f}
+.codex-list{display:grid; gap:12px; grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.codex-card{
+  background:rgba(255,255,255,.03); border:1px solid #26324a;
+  border-radius:12px; padding:12px;
+}
+.codex-top{display:flex; align-items:center; gap:6px; margin-bottom:8px; font-size:15px}
+.codex-ico{font-size:15px}
+.codex-stats{display:flex; gap:12px; font-size:12px; color:#9fb0cc; margin-bottom:6px}
+.codex-stats b{color:#e6edf9; font-size:13px}
+.codex-desc{font-size:12px; color:#8c9ab4; line-height:1.6; margin-bottom:10px; min-height:34px}
+.mini{
+  display:grid; grid-template-columns:repeat(9,15px); grid-auto-rows:15px; gap:2px;
+  justify-content:center;
+}
+.mini i{display:block; border-radius:3px; background:rgba(255,255,255,.04)}
+.mini i.rng{background:rgba(255,107,107,.55); box-shadow:inset 0 0 0 1px rgba(255,107,107,.8)}
+.mini i.me{background:#ffd166; box-shadow:0 0 8px rgba(255,209,102,.6)}
+/* 可治疗目标 */
+.cell.heal{box-shadow:inset 0 0 0 2px #4be3a2, 0 0 14px rgba(75,227,162,.3); cursor:pointer}
 </style>
 </head>
 <body>
@@ -267,7 +326,9 @@ body{
     <div class="log" id="log"></div>
     <button class="btn" id="endBtn">结束行动</button>
     <button class="btn" id="summonBtn" style="display:none">召唤龙卷风</button>
+    <button class="btn" id="paladinHealBtn" style="display:none">治疗队友</button>
     <button class="btn primary" id="readyBtn">准备完毕</button>
+    <button class="btn" id="codexBtn">角色图鉴</button>
     <button class="btn" id="undoBtn">撤回上一枚</button>
     <button class="btn" id="restartBtn">重开一局</button>
     <div class="rules" style="margin-top:12px">
@@ -314,6 +375,35 @@ body{
     return out;
   }
   const RANGER_DIRS = { up: rangerShape('up'), down: rangerShape('down'), left: rangerShape('left'), right: rangerShape('right') };
+
+  // 魔导师：贴身打不到，只能打 2~4 格远、宽 3 的扇形区域（四方向可旋转）
+  // 自己那排和距离 1 都不打；距离 2、3 各 5 格宽；距离 4 为 3 格宽（居中）
+  const MAGE_ROWS = [[2, 5], [3, 5], [4, 3]];
+  function mageShape(dir) {
+    const out = [];
+    for (const [dist, width] of MAGE_ROWS) {
+      const half = (width - 1) / 2;
+      for (let j = -half; j <= half; j++) {
+        if (dir === 'up') out.push([-dist, j]);
+        else if (dir === 'down') out.push([dist, j]);
+        else if (dir === 'left') out.push([j, -dist]);
+        else out.push([j, dist]);
+      }
+    }
+    return out;
+  }
+  const MAGE_DIRS = { up: mageShape('up'), down: mageShape('down'), left: mageShape('left'), right: mageShape('right') };
+  const MAGE_OFFSETS = [];
+  (function () {
+    const seen = new Set();
+    for (const dir of Object.keys(MAGE_DIRS)) {
+      for (const [dr, dc] of MAGE_DIRS[dir]) {
+        const k = dr + ',' + dc;
+        if (seen.has(k)) continue;
+        seen.add(k); MAGE_OFFSETS.push([dr, dc]);
+      }
+    }
+  })();
   const RANGER_OFFSETS = [];
   (function () {
     const seen = new Set();
@@ -326,17 +416,102 @@ body{
     }
   })();
 
-  const CROSS2 = [[1, 0], [-1, 0], [0, 1], [0, -1], [2, 0], [-2, 0], [0, 2], [0, -2]];
+  // 魔法师：3 宽 × 4 高的扇形，最外一排只有中间 1 格（含自己 9 格，去掉自己 8 格可打）
+  const SORC_ROWS = [[3, 1], [2, 3], [1, 3], [0, 3]];
+  function sorcShape(dir) {
+    const out = [];
+    for (const [dist, width] of SORC_ROWS) {
+      const half = (width - 1) / 2;
+      for (let j = -half; j <= half; j++) {
+        if (dist === 0 && j === 0) continue;      // 自己脚下不算
+        if (dir === 'up') out.push([-dist, j]);
+        else if (dir === 'down') out.push([dist, j]);
+        else if (dir === 'left') out.push([j, -dist]);
+        else out.push([j, dist]);
+      }
+    }
+    return out;
+  }
+  const SORC_DIRS = { up: sorcShape('up'), down: sorcShape('down'), left: sorcShape('left'), right: sorcShape('right') };
+
+  // 直线 2 格（吸血鬼 / 刺客）
+  function line2Shape(dir) {
+    const out = [];
+    for (let i = 1; i <= 2; i++) {
+      if (dir === 'up') out.push([-i, 0]);
+      else if (dir === 'down') out.push([i, 0]);
+      else if (dir === 'left') out.push([0, -i]);
+      else out.push([0, i]);
+    }
+    return out;
+  }
+  const LINE2_DIRS = { up: line2Shape('up'), down: line2Shape('down'), left: line2Shape('left'), right: line2Shape('right') };
+
+  // 3×3 加正前方 1 格（炼金术师 / 观星者），自己站在靠内那列中间
+  function block10Shape(dir) {
+    const out = [];
+    for (let i = 0; i <= 2; i++) {
+      for (let j = -1; j <= 1; j++) {
+        if (i === 0 && j === 0) continue;
+        if (dir === 'up') out.push([-i, j]);
+        else if (dir === 'down') out.push([i, j]);
+        else if (dir === 'left') out.push([j, -i]);
+        else out.push([j, i]);
+      }
+    }
+    if (dir === 'up') out.push([-3, 0]);
+    else if (dir === 'down') out.push([3, 0]);
+    else if (dir === 'left') out.push([0, -3]);
+    else out.push([0, 3]);
+    return out;
+  }
+  const BLOCK10_DIRS = { up: block10Shape('up'), down: block10Shape('down'), left: block10Shape('left'), right: block10Shape('right') };
+
+  // 牧师：2 宽 × 3 高，自己站在靠内那列的中间
+  const PRIEST_OFFSETS = [];
+  for (let dr = -1; dr <= 1; dr++) for (let dc = 0; dc <= 1; dc++) { if (dr || dc) PRIEST_OFFSETS.push([dr, dc]); }
+  function unionOf(dirsObj) {
+    const out = [], seen = new Set();
+    for (const d of Object.keys(dirsObj)) {
+      for (const [dr, dc] of dirsObj[d]) {
+        const k = dr + ',' + dc;
+        if (seen.has(k)) continue;
+        seen.add(k); out.push([dr, dc]);
+      }
+    }
+    return out;
+  }
+  const LINE2_UNION = unionOf(LINE2_DIRS);
+  const BLOCK10_UNION = unionOf(BLOCK10_DIRS);
+  const SORC_OFFSETS = [];
+  (function () {
+    const seen = new Set();
+    for (const dir of Object.keys(SORC_DIRS)) {
+      for (const [dr, dc] of SORC_DIRS[dir]) {
+        const k = dr + ',' + dc;
+        if (seen.has(k)) continue;
+        seen.add(k); SORC_OFFSETS.push([dr, dc]);
+      }
+    }
+  })();
   const ADJ4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
   const TYPES = {
     hero:     { name: '勇者',  hp: 25, atk: 5,  spd: 5, range: 'adj4',     desc: '相邻 1 格' },
+    fighter:  { name: '斗士',  hp: 18, atk: 5,  spd: 4, range: 'adj4',     desc: '相邻 1 格；已损失生命转化为攻击' },
+    guard:    { name: '盾卫',  hp: 15, atk: 5,  spd: 1, range: 'adj4',     desc: '相邻 1 格；受到普通攻击减 5（最少 1）' },
     elf:      { name: '精灵',  hp: 5,  atk: 10, spd: 1, range: 'ray',      desc: '前后左右无限，只打第一个' },
     ranger:   { name: '游侠',  hp: 8,  atk: 5,  spd: 4, range: 'ranger10', desc: '3×4 范围 11 格任选，可打 2 人' },
     mage:     { name: '魔导师', hp: 5,  atk: 8,  spd: 1, range: 'cross2',   desc: '十字 2 格' },
-    sorcerer: { name: '魔法师', hp: 8,  atk: 5,  spd: 2, range: 'ring8',    desc: '周围 8 格任选，可召唤龙卷风' },
+    sorcerer: { name: '魔法师', hp: 8,  atk: 5,  spd: 2, range: 'ring8',    desc: '3 宽 4 高扇形（外排 1 格），可召唤龙卷风' },
+    priest:   { name: '牧师',  hp: 25, atk: 5,  spd: 3, range: 'priest',   desc: '攻击改为治疗，可同时治疗两人；队友全灭后才能攻击；不能治疗自己' },
+    paladin:  { name: '圣骑士', hp: 23, atk: 5,  spd: 2, range: 'adj4',     desc: '周围 8 格友方生命上限 +3；每回合为周围一名友方回复 5 生命' },
+    vampire:  { name: '吸血鬼', hp: 20, start: 15, atk: 5,  spd: 4, range: 'line2',    desc: '攻击回复等量生命；击杀时生命上限 +5' },
+    assassin: { name: '刺客',  hp: 3,  atk: 10, spd: 6, range: 'line2',    desc: '首次击杀后额外行动一次，随后攻击 -5' },
+    alchemist:{ name: '炼金术师', hp: 8, atk: 5, spd: 2, range: 'block10', desc: '攻击附加中毒（回合末 -5）；也可改为治疗范围内一名队友' },
+    stargazer:{ name: '观星者', hp: 8,  atk: 6, spd: 2, range: 'block10',  desc: '攻击对目标周围 8 格造成 3 点溅射；每击杀一次，溅射多触发一次' },
   };
-  const ORDER = ['hero', 'elf', 'ranger', 'mage', 'sorcerer'];
+  const ORDER = ['hero', 'fighter', 'guard', 'elf', 'ranger', 'mage', 'sorcerer', 'priest', 'paladin', 'vampire', 'assassin', 'alchemist', 'stargazer'];
 
   let S = null;
 
@@ -357,6 +532,7 @@ body{
       pick: { A: null, B: null },
       active: null, reach: [], targets: [], cands: [], queue: [],
       tornadoes: { A: null, B: null }, summoned: { A: false, B: false },
+      summoning: null, tornadoQueue: [], pendingMove: null, healingFrom: null, paladinHealed: { A: false, B: false },
       winner: null, log: [],
     };
     log('sys', '布阵阶段：双方各自放棋子（最多 5 个，可重复、可少放），放完点「准备」。');
@@ -370,7 +546,7 @@ body{
 
   function makeUnit(team, type, r, c) {
     const t = TYPES[type];
-    return { id: S.nextId++, team, type, r, c, hp: t.hp, maxHp: t.hp, atk: t.atk, spd: t.spd, alive: true, killed: 0 };
+    return { id: S.nextId++, team, type, r, c, hp: (t.start !== undefined ? t.start : t.hp), maxHp: t.hp, atk: t.atk, spd: t.spd, alive: true, killed: 0 };
   }
 
   /* ---------- 布阵 ---------- */
@@ -438,9 +614,12 @@ body{
     S.phase = 'battle';
     log('sys', '双方准备完毕，战斗开始！');
     startRound();
+    refreshAuras();
   }
 
   function startRound() {
+    S.paladinHealed = { A: false, B: false };
+    S.healingFrom = null;
     S.round++;
     S.active = null; S.reach = []; S.targets = []; S.cands = [];
     const alive = aliveUnits();
@@ -476,8 +655,21 @@ body{
 
   function endActivation() {
     if (!S.active) return;
-    S.queue = S.queue.filter(id => id !== S.active);
+    const done = S.active;
+    S.summoning = null;      // 没放下去就结束行动，取消召唤状态
+    S.healingFrom = null;
+    S.queue = S.queue.filter(id => id !== done);
     S.active = null; S.reach = []; S.targets = []; S.cands = [];
+    // 刺客首次击杀：同一单位再行动一次
+    if (S.extraAction === done) {
+      S.extraAction = null;
+      const u = unitById(done);
+      if (u && u.alive) {
+        S.queue.unshift(done);
+        activate(done);
+        return;
+      }
+    }
     nextActivation();
   }
 
@@ -508,6 +700,8 @@ body{
     u.r = r; u.c = c;
     S.reach = []; S.targets = attackTargets(u);
     log(u.team, TYPES[u.type].name + ' 移动至 ' + cellName(r, c));
+    refreshAuras();
+    if (checkWin()) return true;
     return true;
   }
 
@@ -542,10 +736,13 @@ body{
     if (!u) return [];
     switch (TYPES[u.type].range) {
       case 'adj4': return offsetCells(u, ADJ4);
-      case 'cross2': return offsetCells(u, CROSS2);
-      case 'ring8': return offsetCells(u, RING8);
+      case 'cross2': return offsetCells(u, MAGE_OFFSETS);
+      case 'ring8': return offsetCells(u, SORC_OFFSETS);
       case 'ranger10': return offsetCells(u, RANGER_OFFSETS);
       case 'ray': return rayCells(u);
+      case 'line2': return offsetCells(u, LINE2_UNION);
+      case 'block10': return offsetCells(u, BLOCK10_UNION);
+      case 'priest': return offsetCells(u, PRIEST_OFFSETS);
       default: return [];
     }
   }
@@ -571,24 +768,156 @@ body{
     return [];
   }
 
+  /** 斗士：已损失的生命转化为攻击 */
+  function effectiveAtk(u) {
+    if (u.type === 'fighter') return u.atk + (u.maxHp - Math.max(0, u.hp));
+    return u.atk;
+  }
+
+  /** 盾卫：受到普通攻击减 5，最少 1 点 */
+  function incomingDamage(target, raw) {
+    if (target.type === 'guard') return Math.max(1, raw - 5);
+    return raw;
+  }
+
+  /** 圣骑士主动技能：进入选择治疗目标状态 */
+  function beginHeal() {
+    const u = unitById(S.active);
+    if (!u || u.type !== 'paladin') return false;
+    if (S.paladinHealed[u.team]) return false;
+    S.healingFrom = { unitId: u.id, team: u.team };
+    return true;
+  }
+
+  /** 可治疗的队友（周围 8 格） */
+  function healCells() {
+    if (!S.healingFrom) return [];
+    const u = unitById(S.healingFrom.unitId);
+    if (!u) return [];
+    return neighborsOf(u.r, u.c).filter(([r, c]) => {
+      const x = unitAt(r, c);
+      return x && x.alive && x.team === u.team && x.id !== u.id;
+    });
+  }
+
+  function doHeal(r, c) {
+    if (!S.healingFrom) return false;
+    const u = unitById(S.healingFrom.unitId);
+    if (!u) return false;
+    const ok = healCells().some(p => p[0] === r && p[1] === c);
+    if (!ok) return false;
+    const target = unitAt(r, c);
+    const h = healUnit(target, 5);
+    S.paladinHealed[u.team] = true;
+    S.healingFrom = null;
+    log(u.team, '圣骑士为 ' + TYPES[target.type].name + ' 回复 ' + h + ' 点生命（' + target.hp + '/' + target.maxHp + '）');
+    return true;
+  }
+
+  function healUnit(target, amount) {
+    const before = target.hp;
+    target.hp = Math.min(target.maxHp, target.hp + amount);
+    return target.hp - before;
+  }
+
+  function neighborsOf(r, c) {
+    const out = [];
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+      if (!dr && !dc) continue;
+      if (inBoard(r + dr, c + dc)) out.push([r + dr, c + dc]);
+    }
+    return out;
+  }
+
+  /** 圣骑士光环：周围 8 格友方生命上限 +3；离开时扣回，扣到 0 即阵亡 */
+  function refreshAuras() {
+    const paladins = S.units.filter(u => u.alive && u.type === 'paladin');
+    for (const u of S.units) {
+      if (!u.alive) continue;
+      const covered = paladins.some(p => p.team === u.team && p.id !== u.id && Math.max(Math.abs(p.r - u.r), Math.abs(p.c - u.c)) <= 1);
+      if (covered && !u.aura) {
+        u.aura = true; u.maxHp += 3; u.hp += 3;
+        log('sys', TYPES[u.type].name + ' 受到圣骑士庇护，生命上限 +3');
+      } else if (!covered && u.aura) {
+        u.aura = false; u.maxHp -= 3;
+        u.hp = Math.min(u.hp - 3, u.maxHp);   // 上限减 3，同时扣 3 点当前生命，且不允许超过新上限
+        log('sys', TYPES[u.type].name + ' 离开圣骑士庇护，生命上限 -3、当前生命 -3（' + Math.max(0, u.hp) + '/' + u.maxHp + '）');
+        if (u.hp <= 0) { u.hp = 0; u.alive = false; log('sys', TYPES[u.type].name + ' 因庇护消失而阵亡'); }
+      }
+      if (u.hp > u.maxHp) u.hp = u.maxHp;   // 兜底：任何时候血量都不该超过上限
+    }
+  }
+
   function doAttack(targetId) {
     const u = unitById(S.active);
     if (!u || S.attacked) return false;
+    const picked = unitById(targetId);
+    if (!picked || !picked.alive) return false;
+    const inRange = new Set(attackCells(u).map(p => key(p[0], p[1]))).has(key(picked.r, picked.c));
+
+    // 牧师：有队友时只能治疗；队友全灭才允许攻击
+    const allyAlive = aliveUnits(u.team).length > 1;
+    const healMode = (u.type === 'priest' && allyAlive) || (u.type === 'alchemist' && picked.team === u.team);
+    if (healMode) {
+      if (picked.team !== u.team) return false;
+      if (picked.id === u.id) { log(u.team, '不能治疗自己。'); return false; }
+      if (!inRange) return false;
+      S.attacked = true;
+      const healed = healUnit(picked, effectiveAtk(u));
+      log(u.team, TYPES[u.type].name + ' 治疗 ' + TYPES[picked.type].name + ' ' + healed + ' 点（' + picked.hp + '/' + picked.maxHp + '）');
+      if (u.type === 'priest') {
+        const second = aliveUnits(u.team).filter(x => x.id !== u.id && x.id !== picked.id && inRangeCell(u, x))
+          .sort((a, b) => a.hp / a.maxHp - b.hp / b.maxHp)[0];
+        if (second) {
+          const h2 = healUnit(second, effectiveAtk(u));
+          log(u.team, '牧师同时治疗 ' + TYPES[second.type].name + ' ' + h2 + ' 点');
+        }
+      }
+      return true;
+    }
+
     const set = new Set(attackCells(u).map(p => key(p[0], p[1])));
     let targets = S.units.filter(x => x.alive && x.team !== u.team && set.has(key(x.r, x.c)));
     if (u.type === 'ranger') {
       targets = rangerTargets(u, targetId).slice(0, 2);
     } else {
-      const picked = unitById(targetId);
-      if (!picked) return false;
       targets = [picked];
     }
     if (!targets.length) return false;
 
     S.attacked = true;
+    const rawAtk = effectiveAtk(u);
     for (const t of targets) {
-      t.hp -= u.atk;
-      log(u.team, TYPES[u.type].name + ' 攻击 ' + TYPES[t.type].name + '，造成 ' + u.atk + ' 伤害（剩 ' + Math.max(0, t.hp) + '/' + t.maxHp + '）');
+      const dmg = incomingDamage(t, rawAtk);
+      t.hp -= dmg;
+      log(u.team, TYPES[u.type].name + ' 攻击 ' + TYPES[t.type].name + '，造成 ' + dmg + ' 伤害（剩 ' + Math.max(0, t.hp) + '/' + t.maxHp + '）');
+
+      if (u.type === 'vampire') {
+        const back = healUnit(u, dmg);
+        if (back > 0) log(u.team, '吸血鬼回复 ' + back + ' 点生命');
+      }
+      if (u.type === 'alchemist') {
+        t.poison = true;
+        log(u.team, TYPES[t.type].name + ' 中毒了（每回合结束 -5）');
+      }
+      if (u.type === 'stargazer') {
+        const times = 1 + (u.stargazerKills || 0);
+        for (let k = 0; k < times; k++) {
+          for (const [nr, nc] of neighborsOf(t.r, t.c)) {
+            const near = unitAt(nr, nc);
+            if (near && near.alive && near.team !== u.team) {
+              near.hp -= 3;
+              log(u.team, '溅射命中 ' + TYPES[near.type].name + ' 3 点（剩 ' + Math.max(0, near.hp) + '/' + near.maxHp + '）');
+              if (near.hp <= 0) {
+                near.alive = false; near.hp = 0;
+                log(u.team, TYPES[near.type].name + ' 被溅射击倒！');
+                u.stargazerKills = (u.stargazerKills || 0) + 1;
+              }
+            }
+          }
+        }
+      }
+
       if (t.hp <= 0) {
         t.alive = false; t.hp = 0;
         log(u.team, TYPES[t.type].name + ' 被击倒！');
@@ -596,67 +925,149 @@ body{
           u.killed++; u.spd += 1; u.atk += 2;
           log(u.team, '游侠击杀成长：速度 +1、攻击 +2（现 ' + u.spd + ' 速 / ' + u.atk + ' 攻）');
         }
+        if (u.type === 'vampire') {
+          u.maxHp += 5; u.hp += 5;
+          log(u.team, '吸血鬼生命上限 +5（现 ' + u.maxHp + '）');
+        }
+        if (u.type === 'stargazer') {
+          u.stargazerKills = (u.stargazerKills || 0) + 1;
+          log(u.team, '观星者溅射强化：下次溅射触发 ' + (1 + u.stargazerKills) + ' 次');
+        }
+        if (u.type === 'assassin' && !u.assassinUsed) {
+          u.assassinUsed = true;
+          u.atk = Math.max(1, u.atk - 5);
+          S.extraAction = u.id;
+          log(u.team, '刺客首次击杀！再行动一次（攻击降至 ' + u.atk + '）');
+        }
       }
     }
+    refreshAuras();
     checkWin();
     return true;
   }
 
+  function inRangeCell(u, x) {
+    return attackCells(u).some(p => p[0] === x.r && p[1] === x.c);
+  }
+
+  /** 回合结束：中毒扣血 → 圣骑士治疗 */
+  function endRoundEffects() {
+    for (const u of S.units) {
+      if (!u.alive || !u.poison) continue;
+      u.hp -= 5;
+      log('sys', TYPES[u.type].name + ' 中毒 -5（' + Math.max(0, u.hp) + '/' + u.maxHp + '）');
+      if (u.hp <= 0) { u.alive = false; u.hp = 0; log('sys', TYPES[u.type].name + ' 因中毒阵亡'); }
+    }
+    refreshAuras();
+  }
   /* ---------- 龙卷风 ---------- */
-  function summonTornado() {
+  /** 进入「选位置放龙卷风」状态（魔法师行动时可用） */
+  function beginSummon() {
     const u = unitById(S.active);
     if (!u || u.type !== 'sorcerer') return false;
-    const team = u.team;
-    if (S.summoned[team]) return false;
-    const spots = [];
-    for (const [dr, dc] of RING8) {
-      const r = u.r + dr, c = u.c + dc;
-      if (inBoard(r, c) && !isBlocked(r, c) && !unitAt(r, c)) spots.push([r, c]);
-    }
-    if (!spots.length) return false;
-    S.tornadoes[team] = { r: spots[0][0], c: spots[0][1], team };
-    S.summoned[team] = true;
-    log(team, '魔法师召唤了 3×3 龙卷风（' + cellName(spots[0][0], spots[0][1]) + '）');
+    if (S.summoned[u.team]) return false;
+    S.summoning = { team: u.team, unitId: u.id };
     return true;
   }
 
-  function tornadoTick() {
-    for (const team of ['A', 'B']) {
-      const tw = S.tornadoes[team];
-      if (!tw) continue;
-      const r = tw.r, c = tw.c;
-      let hit = 0;
-      for (const u of aliveUnits()) {
-        if (u.team === team) continue;
-        if (Math.abs(u.r - r) <= 1 && Math.abs(u.c - c) <= 1) {
-          u.hp -= 5; hit++;
-          log(team, '龙卷风撕扯 ' + TYPES[u.type].name + ' 5 点（剩 ' + Math.max(0, u.hp) + '/' + u.maxHp + '）');
-          if (u.hp <= 0) { u.alive = false; u.hp = 0; log(team, TYPES[u.type].name + ' 被龙卷风击倒！'); }
-        }
-      }
-      if (hit === 0) log(team, '龙卷风空转，范围内没有敌人。');
-      const enemies = aliveUnits(team === 'A' ? 'B' : 'A');
-      if (enemies.length) {
-        let best = enemies[0], bd = 1e9;
-        for (const e of enemies) {
-          const d = Math.abs(e.r - r) + Math.abs(e.c - c);
-          if (d < bd) { bd = d; best = e; }
-        }
-        const dr = Math.sign(best.r - r), dc = Math.sign(best.c - c);
-        for (const step of [[dr, dc], [dr, 0], [0, dc]]) {
-          if (!step[0] && !step[1]) continue;
-          const nr = r + step[0], nc = c + step[1];
-          if (inBoard(nr, nc) && !isBlocked(nr, nc) && !unitAt(nr, nc)) { tw.r = nr; tw.c = nc; break; }
-        }
-      }
-    }
+  /** 当前可放龙卷风的格子：魔法师攻击范围内、空格、非障碍 */
+  function summonCells() {
+    if (!S.summoning) return [];
+    const u = unitById(S.summoning.unitId);
+    if (!u) return [];
+    return attackCells(u).filter(([r, c]) => !unitAt(r, c) && !(S.tornadoes.A && S.tornadoes.A.r === r && S.tornadoes.A.c === c) && !(S.tornadoes.B && S.tornadoes.B.r === r && S.tornadoes.B.c === c));
   }
 
+  function placeTornado(r, c) {
+    if (!S.summoning) return false;
+    const ok = summonCells().some(p => p[0] === r && p[1] === c);
+    if (!ok) return false;
+    const team = S.summoning.team;
+    S.tornadoes[team] = { r, c, team };
+    S.summoned[team] = true;
+    S.summoning = null;
+    log(team, '龙卷风落在 ' + cellName(r, c) + '（3×3 范围，回合结束造成 5 点伤害）');
+    return true;
+  }
+
+  /** 回合结束时，按 A→B 顺序：先结算伤害，再由该方玩家决定是否移动一格 */
   function endRound() {
     log('sys', '—— 第 ' + S.round + ' 回合结束 ——');
-    tornadoTick();
-    if (checkWin()) return;
+    endRoundEffects();
+    S.tornadoQueue = ['A', 'B'].filter(t => S.tornadoes[t]);
+    processTornadoStep();
+  }
+
+  function processTornadoStep() {
+    while (S.tornadoQueue.length) {
+      const team = S.tornadoQueue[0];
+      damageTornado(team);
+      if (checkWin()) { S.pendingMove = null; return; }
+      const opts = tornadoMoveOptions(team);
+      if (opts.length) {
+        S.pendingMove = { team: team, opts: opts };
+        return;                       // 等玩家选方向
+      }
+      S.tornadoQueue.shift();         // 无处可移，直接下一个
+    }
+    S.pendingMove = null;
+    S.tornadoQueue = [];
     startRound();
+  }
+
+  function damageTornado(team) {
+    const tw = S.tornadoes[team];
+    if (!tw) return;
+    let hit = 0;
+    for (const u of aliveUnits()) {
+      if (u.team === team) continue;
+      if (Math.abs(u.r - tw.r) <= 1 && Math.abs(u.c - tw.c) <= 1) {
+        u.hp -= 5; hit++;
+        log(team, '龙卷风撕扯 ' + TYPES[u.type].name + ' 5 点（剩 ' + Math.max(0, u.hp) + '/' + u.maxHp + '）');
+        if (u.hp <= 0) { u.alive = false; u.hp = 0; log(team, TYPES[u.type].name + ' 被龙卷风击倒！'); }
+      }
+    }
+    if (hit === 0) log(team, '龙卷风空转，范围内没有敌人。');
+  }
+
+  function tornadoMoveOptions(team) {
+    const tw = S.tornadoes[team];
+    if (!tw) return [];
+    const out = [];
+    for (const [dr, dc] of ADJ4) {
+      const r = tw.r + dr, c = tw.c + dc;
+      if (!inBoard(r, c)) continue;
+      if (isBlocked(r, c)) continue;
+      if (unitAt(r, c)) continue;
+      const other = team === 'A' ? S.tornadoes.B : S.tornadoes.A;
+      if (other && other.r === r && other.c === c) continue;
+      out.push([r, c]);
+    }
+    return out;
+  }
+
+  function finishTornadoStep() {
+    S.pendingMove = null;
+    S.tornadoQueue.shift();
+    processTornadoStep();
+  }
+
+  function moveTornado(team, r, c) {
+    if (!S.pendingMove || S.pendingMove.team !== team) return false;
+    if (!S.pendingMove.opts.some(p => p[0] === r && p[1] === c)) return false;
+    const tw = S.tornadoes[team];
+    if (!tw) return false;
+    tw.r = r; tw.c = c;
+    log(team, '龙卷风移动到 ' + cellName(r, c));
+    finishTornadoStep();
+    return true;
+  }
+
+  function skipTornadoMove(team) {
+    if (!S.pendingMove || S.pendingMove.team !== team) return false;
+    log(team, '龙卷风留在原地');
+    finishTornadoStep();
+    return true;
   }
 
   function checkWin() {
@@ -674,17 +1085,43 @@ body{
   /* ---------- 战斗阶段的一次点击 ---------- */
   function applyClick(r, c) {
     if (S.phase !== 'battle') return false;
+    if (S.healingFrom) return doHeal(r, c);
     const occ = unitAt(r, c);
     if (!S.active && S.cands.length) {
       if (occ && S.cands.indexOf(occ.id) >= 0) { activate(occ.id); return true; }
       return false;
     }
     if (!S.active) return false;
+    const me = unitById(S.active);
+    // 牧师 / 炼金术师：点范围内队友 = 治疗（优先于移动）
+    if (occ && occ.team === me.team && occ.id !== me.id && !S.attacked) {
+      const canHeal = me.type === 'priest' || me.type === 'alchemist';
+      const inRange = attackCells(me).some(p => p[0] === r && p[1] === c);
+      if (canHeal && inRange) return doAttack(occ.id);
+    }
     if (S.reach.some(p => p[0] === r && p[1] === c)) return moveTo(r, c);
-    if (occ && occ.team !== unitById(S.active).team) {
-      if (attackTargets(unitById(S.active)).indexOf(occ.id) >= 0) return doAttack(occ.id);
+    if (occ && occ.team !== me.team) {
+      if (attackTargets(me).indexOf(occ.id) >= 0) return doAttack(occ.id);
     }
     return false;
+  }
+
+  /** 给图鉴用：返回该棋子攻击范围的偏移（不依赖棋盘，精灵按 4 格直线示意） */
+  function previewOffsets(type) {
+    const r = TYPES[type] && TYPES[type].range;
+    if (r === 'adj4') return ADJ4;
+    if (r === 'ranger10') return RANGER_DIRS.up;
+    if (r === 'ring8') return SORC_DIRS.up;
+    if (r === 'cross2') return MAGE_DIRS.up;
+    if (r === 'line2') return LINE2_DIRS.up;
+    if (r === 'block10') return BLOCK10_DIRS.up;
+    if (r === 'priest') return PRIEST_OFFSETS;
+    if (r === 'ray') {
+      const out = [];
+      for (let d = 1; d <= 4; d++) out.push([d, 0], [-d, 0], [0, d], [0, -d]);
+      return out;
+    }
+    return [];
   }
 
   const api = {
@@ -694,7 +1131,8 @@ body{
     pickType, placeUnit, removeLast, readyUp, unready,
     startBattle, startRound, nextActivation, activate, endActivation,
     reachable, moveTo, attackCells, attackTargets, doAttack, applyClick,
-    summonTornado, tornadoTick, endRound, checkWin,
+    effectiveAtk, incomingDamage, previewOffsets, beginHeal, healCells, doHeal, healUnit, refreshAuras, endRoundEffects, inRangeCell,
+    beginSummon, summonCells, placeTornado, moveTornado, skipTornadoMove, endRound, checkWin,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -763,7 +1201,7 @@ body{
       G.ORDER.forEach(function (t) {
         const b = h('button', 'chip' + (S.pick[cur] === t ? ' sel' : ''));
         b.disabled = locked || full || S.turn !== cur;
-        b.innerHTML = G.TYPES[t].name + ' <small>' + G.TYPES[t].hp + '血 ' + G.TYPES[t].atk + '攻 ' + G.TYPES[t].spd + '速</small>';
+        b.innerHTML = G.TYPES[t].name + ' <small>' + ((G.TYPES[t].start !== undefined ? G.TYPES[t].start : G.TYPES[t].hp) + '血 ' + G.TYPES[t].atk + '攻 ' + G.TYPES[t].spd + '速') + '</small>';
         b.onclick = function () { if (cfg.onPick) cfg.onPick(cur, t); };
         chips.appendChild(b);
       });
@@ -776,6 +1214,29 @@ body{
     for (let c = 0; c < G.COLS; c++) grid.appendChild(h('div', 'collab', String.fromCharCode(65 + c)));
 
     const atkSet = activeUnit ? new Set(G.attackCells(activeUnit).map(function (p) { return p[0] * G.COLS + p[1]; })) : new Set();
+
+    // 龙卷风 3×3 预警格（淡红）
+    const warnSet = new Set();
+    ['A', 'B'].forEach(function (team) {
+      const tw = S.tornadoes[team];
+      if (!tw) return;
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        const r = tw.r + dr, c = tw.c + dc;
+        if (r >= 0 && r < G.ROWS && c >= 0 && c < G.COLS) warnSet.add(r * G.COLS + c);
+      }
+    });
+
+    // 召唤时可选落点
+    const summonSet = new Set();
+    if (S.summoning) G.summonCells().forEach(function (p) { summonSet.add(p[0] * G.COLS + p[1]); });
+
+    // 圣骑士选治疗目标
+    const paladinHealSet = new Set();
+    if (S.healingFrom) G.healCells().forEach(function (p) { paladinHealSet.add(p[0] * G.COLS + p[1]); });
+
+    // 回合末龙卷风可移动格
+    const moveSet = new Set();
+    if (S.pendingMove) S.pendingMove.opts.forEach(function (p) { moveSet.add(p[0] * G.COLS + p[1]); });
 
     for (let r = 0; r < G.ROWS; r++) {
       grid.appendChild(h('div', 'rowlab', String(r + 1)));
@@ -798,11 +1259,21 @@ body{
           const canPlace = !S.ready[cur] && S.turn === cur && G.teamUnits(cur).length < G.MAX_UNITS;
           if (canPlace && r >= range[0] && r <= range[1] && !G.unitAt(r, c)) cell.classList.add('placeable');
         }
+        if (warnSet.has(r * G.COLS + c)) cell.classList.add('warn');
+        if (summonSet.has(r * G.COLS + c)) cell.classList.add('summonable');
+        if (paladinHealSet.has(r * G.COLS + c)) cell.classList.add('heal');
+        if (moveSet.has(r * G.COLS + c)) cell.classList.add('move');
         if (S.reach.some(function (p) { return p[0] === r && p[1] === c; })) cell.classList.add('move');
         if (activeUnit && atkSet.has(r * G.COLS + c)) {
           cell.classList.add('atk');
           const t = G.unitAt(r, c);
           if (t && t.team !== activeUnit.team) cell.classList.add('target');
+          // 牧师 / 炼金术师：范围内的队友可以点（治疗）
+          if (t && t.team === activeUnit.team && t.id !== activeUnit.id &&
+              (activeUnit.type === 'priest' || activeUnit.type === 'alchemist')) {
+            const alliesAlive = G.aliveUnits(activeUnit.team).length > 1;
+            if (activeUnit.type === 'alchemist' || alliesAlive) cell.classList.add('heal');
+          }
         }
         const occ0 = G.unitAt(r, c);
         if (occ0 && S.cands.indexOf(occ0.id) >= 0) cell.classList.add('cand');
@@ -845,7 +1316,7 @@ body{
       list.slice().sort(function (x, y) { return y.spd - x.spd; }).forEach(function (u) {
         const row = h('div', 'hprow');
         row.innerHTML = '<span>' + G.TYPES[u.type].name + (u.killed ? '（' + u.killed + '杀）' : '') + '</span>'
-          + '<span>' + Math.max(0, u.hp) + '/' + u.maxHp + ' · ' + u.spd + '速</span>';
+          + '<span>' + Math.max(0, u.hp) + '/' + u.maxHp + ' · ' + u.spd + '速 · 攻 ' + G.effectiveAtk(u) + '</span>';
         hp.appendChild(row);
       });
     });
@@ -867,7 +1338,21 @@ body{
     const inSetup = S.phase === 'setup';
     endBtn.style.display = inSetup ? 'none' : 'block';
     endBtn.disabled = !S.active || !mine;
-    summonBtn.style.display = (activeUnit && activeUnit.type === 'sorcerer' && !S.summoned[activeUnit.team] && mine) ? 'block' : 'none';
+    summonBtn.style.display = (activeUnit && activeUnit.type === 'sorcerer' && !S.summoned[activeUnit.team] && mine && !S.summoning) ? 'block' : 'none';
+
+    const paladinBtn = document.getElementById('paladinHealBtn');
+    if (paladinBtn) {
+      const canHeal = activeUnit && activeUnit.type === 'paladin' && !S.paladinHealed[activeUnit.team] && !S.healingFrom && mine;
+      paladinBtn.style.display = canHeal ? 'block' : 'none';
+    }
+
+    const moveSkipBtn = document.getElementById('moveSkipBtn');
+    if (moveSkipBtn) {
+      const pm = S.pendingMove;
+      const canOperate = pm && (online ? (pm.team === cfg.myTeam) : true);
+      moveSkipBtn.style.display = canOperate ? 'block' : 'none';
+      moveSkipBtn.textContent = '龙卷风跳过移动';
+    }
 
     if (readyBtn) {
       readyBtn.style.display = inSetup ? 'block' : 'none';
@@ -885,7 +1370,85 @@ body{
 
   function MY_TEAM_SAFE(cfg) { return cfg.myTeam || 'B'; }
 
-  root.UI = { render };
+  /* ---------- 图鉴 ---------- */
+  function buildCodex() {
+    const N = 9, C = 4;
+    const mask = h('div', 'codex-mask');
+    mask.id = 'codexMask';
+    const panel = h('div', 'codex-panel');
+    mask.appendChild(panel);
+
+    const head = h('div', 'codex-head');
+    head.appendChild(h('b', '', '角色图鉴'));
+    head.appendChild(h('span', 'codex-tip', '可旋转的攻击范围只画一个方向'));
+    const close = h('button', 'codex-close', '关闭');
+    close.id = 'codexClose';
+    head.appendChild(close);
+    panel.appendChild(head);
+
+    const list = h('div', 'codex-list');
+    panel.appendChild(list);
+
+    G.ORDER.forEach(function (t) {
+      const T = G.TYPES[t];
+      const offs = G.previewOffsets(t);
+      const card = h('div', 'codex-card');
+
+      const top = h('div', 'codex-top');
+      top.appendChild(h('span', 'codex-ico', ICONS[t] || ''));
+      top.appendChild(h('b', '', T.name));
+      card.appendChild(top);
+
+      const stats = h('div', 'codex-stats');
+      const hpText = (T.start !== undefined && T.start !== T.hp) ? (T.start + '/' + T.hp) : String(T.hp);
+      stats.innerHTML = '<span>生命 <b>' + hpText + '</b></span><span>攻击 <b>' + T.atk + '</b></span><span>速度 <b>' + T.spd + '</b></span>';
+      card.appendChild(stats);
+
+      card.appendChild(h('div', 'codex-desc', T.desc || ''));
+
+      let mini = '<div class="mini">';
+      for (let r = 0; r < N; r++) {
+        for (let c = 0; c < N; c++) {
+          const dr = r - C, dc = c - C;
+          const isSelf = dr === 0 && dc === 0;
+          const hit = offs.some(function (p) { return p[0] === dr && p[1] === dc; });
+          mini += '<i class="' + (isSelf ? 'me' : hit ? 'rng' : '') + '"></i>';
+        }
+      }
+      mini += '</div>';
+      const miniEl = h('div', '');
+      miniEl.innerHTML = mini;
+      card.appendChild(miniEl);
+
+      list.appendChild(card);
+    });
+
+    return mask;
+  }
+
+  let codexBound = false;
+  function openCodex() {
+    let mask = document.getElementById('codexMask');
+    if (!mask) {
+      mask = buildCodex();
+      document.body.appendChild(mask);
+    }
+    mask.style.display = 'flex';
+    if (!codexBound) {
+      codexBound = true;
+      const closeBtn = document.getElementById('codexClose');
+      if (closeBtn) closeBtn.onclick = closeCodex;
+      mask.onclick = function (e) { if (e.target === mask) closeCodex(); };
+      if (document.addEventListener) {
+        document.addEventListener('keydown', function (e) { if (e && e.key === 'Escape') closeCodex(); });
+      }
+    }
+  }
+  function closeCodex() {
+    const mask = document.getElementById('codexMask');
+    if (mask) mask.style.display = 'none';
+  }
+  root.UI = { render: render, openCodex: openCodex, closeCodex: closeCodex, buildCodex: buildCodex };
 })(window);
 
 </script>
@@ -918,12 +1481,14 @@ body{
       },
       onCell: function (r, c) {
         const S = G.getState();
-        if (S.phase === 'setup') G.placeUnit(currentTeam, r, c);
+        if (S.summoning) G.placeTornado(r, c);
+        else if (S.pendingMove) G.moveTornado(S.pendingMove.team, r, c);
+        else if (S.phase === 'setup') G.placeUnit(currentTeam, r, c);
         else G.applyClick(r, c);
         refresh();
       },
       onEnd: function () { G.endActivation(); refresh(); },
-      onSummon: function () { G.summonTornado(); refresh(); },
+      onSummon: function () { G.beginSummon(); refresh(); },
       onRestart: function () { if (confirm('确定重开？')) { G.newGame(); currentTeam = 'A'; refresh(); } },
     });
     paintTeamButtons();
@@ -946,7 +1511,14 @@ body{
   document.getElementById('teamA').onclick = function () { setTeam('A'); };
   document.getElementById('teamB').onclick = function () { setTeam('B'); };
   document.getElementById('endBtn').onclick = function () { G.endActivation(); refresh(); };
-  document.getElementById('summonBtn').onclick = function () { G.summonTornado(); refresh(); };
+  document.getElementById('paladinHealBtn').onclick = function () {
+    const S = G.getState();
+    if (S.healingFrom) return;
+    if (ROLE === 'guest') { send({ type: 'beginHeal' }); return; }
+    G.beginHeal(); refresh();
+  };
+  document.getElementById('paladinHealBtn').onclick = function () { G.beginHeal(); refresh(); };
+  document.getElementById('summonBtn').onclick = function () { G.beginSummon(); refresh(); };
   document.getElementById('readyBtn').onclick = function () {
     const S = G.getState();
     if (S.ready[currentTeam]) G.unready(currentTeam);
@@ -957,7 +1529,13 @@ body{
     }
     refresh();
   };
+  document.getElementById('moveSkipBtn').onclick = function () {
+    const S = G.getState();
+    if (S.pendingMove) G.skipTornadoMove(S.pendingMove.team);
+    refresh();
+  };
   document.getElementById('undoBtn').onclick = function () { undoLast(); refresh(); };
+  document.getElementById('codexBtn').onclick = function () { UI.openCodex(); };
   document.getElementById('restartBtn').onclick = function () { if (confirm('确定重开？')) { G.newGame(); currentTeam = 'A'; refresh(); } };
 
   G.newGame();
