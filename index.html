@@ -205,10 +205,12 @@ body{
 /* ---------- 血量列表 ---------- */
 .hplist{display:flex; flex-direction:column; gap:5px; margin:10px 0}
 .hprow{
-  display:flex; justify-content:space-between; gap:8px;
+  display:flex; justify-content:space-between; align-items:center; gap:10px;
   font-size:12px; color:#a9b8d3;
-  padding:3px 6px; border-radius:6px; background:rgba(255,255,255,.02);
+  padding:5px 8px; border-radius:6px; background:rgba(255,255,255,.02);
 }
+.hprow .stat{display:flex; gap:14px; white-space:nowrap}
+.hprow .stat > span{display:inline-flex; align-items:center; gap:3px}
 
 /* ---------- 日志 ---------- */
 .log{
@@ -295,7 +297,7 @@ body{
 }
 .codex-top{display:flex; align-items:center; gap:6px; margin-bottom:8px; font-size:15px}
 .codex-ico{font-size:15px}
-.codex-stats{display:flex; gap:12px; font-size:12px; color:#9fb0cc; margin-bottom:6px}
+.codex-stats{display:flex; gap:16px; font-size:12px; color:#9fb0cc; margin-bottom:6px; flex-wrap:wrap}
 .codex-stats b{color:#e6edf9; font-size:13px}
 .codex-desc{font-size:12px; color:#8c9ab4; line-height:1.6; margin-bottom:10px; min-height:34px}
 .mini{
@@ -307,6 +309,12 @@ body{
 .mini i.me{background:#ffd166; box-shadow:0 0 8px rgba(255,209,102,.6)}
 /* 可治疗目标 */
 .cell.heal{box-shadow:inset 0 0 0 2px #4be3a2, 0 0 14px rgba(75,227,162,.3); cursor:pointer}
+/* ---------- 规则介绍 ---------- */
+.rules-list{display:flex; flex-direction:column; gap:14px}
+.rule-sec{background:rgba(255,255,255,.03); border:1px solid #26324a; border-radius:12px; padding:12px 14px}
+.rule-h{font-size:14px; font-weight:700; color:#dbe7fb; margin-bottom:8px}
+.rule-ul{margin:0; padding-left:18px}
+.rule-ul li{font-size:12.5px; color:#a9b8d3; line-height:1.85; margin:2px 0}
 </style>
 </head>
 <body>
@@ -330,19 +338,10 @@ body{
     <button class="btn" id="moveSkipBtn" style="display:none">龙卷风跳过移动</button>
     <button class="btn primary" id="readyBtn">准备完毕</button>
     <button class="btn" id="codexBtn">角色图鉴</button>
+    <button class="btn" id="rulesBtn">规则介绍</button>
     <button class="btn" id="undoBtn">撤回上一枚</button>
     <button class="btn" id="restartBtn">重开一局</button>
-    <div class="rules" style="margin-top:12px">
-      <b>规则</b><br>
-      · 每方最多 5 个棋子，<b>可重复选同一种、也可以少放</b><br>
-      · 双方轮流放置，一次一个<br>
-      · 只能放 1–4 行（B）或 8–11 行（A）；5–7 行不可布阵<br>
-      · A5–A7、E5–E7 是障碍格<br>
-      · 双方都点「准备完毕」后开战<br>
-      · 速度 = 移动格数；速度高者先行，同速比全队总速度<br>
-      · 每次行动：移动一次 + 攻击一次
-    </div>
-  </div>
+</div>
 </div>
 
 <script>
@@ -468,9 +467,19 @@ body{
   }
   const BLOCK10_DIRS = { up: block10Shape('up'), down: block10Shape('down'), left: block10Shape('left'), right: block10Shape('right') };
 
-  // 牧师：2 宽 × 3 高，自己站在靠内那列的中间
-  const PRIEST_OFFSETS = [];
-  for (let dr = -1; dr <= 1; dr++) for (let dc = 0; dc <= 1; dc++) { if (dr || dc) PRIEST_OFFSETS.push([dr, dc]); }
+  // 牧师：2 宽 × 3 高，自己站在靠内那列的中间，可朝上下左右任意方向
+  const PRIEST_BASE = [[-1, 0], [-1, 1], [0, 1], [1, 0], [1, 1]];
+  function rotOffsets(base, dir) {
+    if (dir === 'up') return base.map(function (o) { return [o[0], o[1]]; });
+    if (dir === 'right') return base.map(function (o) { return [o[1], -o[0]]; });
+    if (dir === 'down') return base.map(function (o) { return [-o[0], -o[1]]; });
+    return base.map(function (o) { return [-o[1], o[0]]; });          // left
+  }
+  const PRIEST_DIRS = {
+    up: rotOffsets(PRIEST_BASE, 'up'), right: rotOffsets(PRIEST_BASE, 'right'),
+    down: rotOffsets(PRIEST_BASE, 'down'), left: rotOffsets(PRIEST_BASE, 'left'),
+  };
+  const PRIEST_OFFSETS = unionOf(PRIEST_DIRS);
   function unionOf(dirsObj) {
     const out = [], seen = new Set();
     for (const d of Object.keys(dirsObj)) {
@@ -498,15 +507,15 @@ body{
   const ADJ4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
   const TYPES = {
-    hero:     { name: '勇者',  hp: 25, atk: 5,  spd: 5, range: 'adj4',     desc: '相邻 1 格' },
-    fighter:  { name: '斗士',  hp: 18, atk: 5,  spd: 4, range: 'adj4',     desc: '相邻 1 格；已损失生命转化为攻击' },
-    guard:    { name: '盾卫',  hp: 15, atk: 5,  spd: 1, range: 'adj4',     desc: '相邻 1 格；受到普通攻击减 5（最少 1）' },
-    elf:      { name: '精灵',  hp: 5,  atk: 10, spd: 1, range: 'ray',      desc: '前后左右无限，只打第一个' },
-    ranger:   { name: '游侠',  hp: 8,  atk: 5,  spd: 4, range: 'ranger10', desc: '3×4 范围 11 格任选，可打 2 人' },
-    mage:     { name: '魔导师', hp: 5,  atk: 8,  spd: 1, range: 'cross2',   desc: '十字 2 格' },
-    sorcerer: { name: '魔法师', hp: 8,  atk: 5,  spd: 2, range: 'ring8',    desc: '3 宽 4 高扇形（外排 1 格），可召唤龙卷风' },
+    hero:     { name: '勇者',  hp: 25, atk: 5,  spd: 5, range: 'adj4',     desc: '' },
+    fighter:  { name: '斗士',  hp: 18, atk: 5,  spd: 4, range: 'adj4',     desc: '已损失的生命转化为攻击' },
+    guard:    { name: '盾卫',  hp: 15, atk: 5,  spd: 1, range: 'adj4',     desc: '受到普通攻击减 5（最低 1 点）' },
+    elf:      { name: '精灵',  hp: 5,  atk: 10, spd: 1, range: 'ray',      desc: '四个方向无限远，友方不挡路；每个方向只打第一个敌人' },
+    ranger:   { name: '游侠',  hp: 8,  atk: 5,  spd: 4, range: 'ranger10', desc: '最多同时攻击 2 个目标；每击杀 +1 速 +2 攻' },
+    mage:     { name: '魔导师', hp: 5,  atk: 8,  spd: 1, range: 'cross2',   desc: '打不到贴身目标，越远越擅长' },
+    sorcerer: { name: '魔法师', hp: 8,  atk: 5,  spd: 2, range: 'ring8',    desc: '可召唤 3×3 龙卷风，每回合末造成 5 点伤害' },
     priest:   { name: '牧师',  hp: 25, atk: 5,  spd: 3, range: 'priest',   desc: '攻击改为治疗，可同时治疗两人；队友全灭后才能攻击；不能治疗自己' },
-    paladin:  { name: '圣骑士', hp: 23, atk: 5,  spd: 2, range: 'adj4',     desc: '周围 8 格友方生命上限 +3；每回合为周围一名友方回复 5 生命' },
+    paladin:  { name: '圣骑士', hp: 23, atk: 5,  spd: 2, range: 'adj4',     desc: '周围 8 格友方生命上限 +3；每回合可治疗一名友方 5 点生命' },
     vampire:  { name: '吸血鬼', hp: 20, start: 15, atk: 5,  spd: 4, range: 'line2',    desc: '攻击回复等量生命；击杀时生命上限 +5' },
     assassin: { name: '刺客',  hp: 3,  atk: 10, spd: 6, range: 'line2',    desc: '首次击杀后额外行动一次，随后攻击 -5' },
     alchemist:{ name: '炼金术师', hp: 8, atk: 5, spd: 2, range: 'block10', desc: '攻击附加中毒（回合末 -5）；也可改为治疗范围内一名队友' },
@@ -1116,7 +1125,7 @@ body{
     if (r === 'cross2') return MAGE_DIRS.up;
     if (r === 'line2') return LINE2_DIRS.up;
     if (r === 'block10') return BLOCK10_DIRS.up;
-    if (r === 'priest') return PRIEST_OFFSETS;
+    if (r === 'priest') return PRIEST_DIRS.up;
     if (r === 'ray') {
       const out = [];
       for (let d = 1; d <= 4; d++) out.push([d, 0], [-d, 0], [0, d], [0, -d]);
@@ -1202,7 +1211,7 @@ body{
       G.ORDER.forEach(function (t) {
         const b = h('button', 'chip' + (S.pick[cur] === t ? ' sel' : ''));
         b.disabled = locked || full || S.turn !== cur;
-        b.innerHTML = G.TYPES[t].name + ' <small>' + ((G.TYPES[t].start !== undefined ? G.TYPES[t].start : G.TYPES[t].hp) + '血 ' + G.TYPES[t].atk + '攻 ' + G.TYPES[t].spd + '速') + '</small>';
+        b.innerHTML = G.TYPES[t].name + ' <small>❤' + (G.TYPES[t].start !== undefined ? G.TYPES[t].start : G.TYPES[t].hp) + ' ⚔' + G.TYPES[t].atk + ' 👟' + G.TYPES[t].spd + '</small>';
         b.onclick = function () { if (cfg.onPick) cfg.onPick(cur, t); };
         chips.appendChild(b);
       });
@@ -1288,7 +1297,7 @@ body{
           const el = h('div', 'u ' + occ.team.toLowerCase());
           const pct = Math.max(0, occ.hp / occ.maxHp * 100);
           const color = pct > 50 ? '#5be08a' : pct > 25 ? '#ffd166' : '#ff6b6b';
-          el.innerHTML = '<div class="top"><span class="ico">' + (ICONS[occ.type] || '') + '</span>'
+          el.innerHTML = '<div class="top">'
             + '<span class="nm">' + G.TYPES[occ.type].name + '</span></div>'
             + '<div class="hpbar"><i style="width:' + pct + '%;background:' + color + '"></i></div>'
             + '<div class="hptxt">' + Math.max(0, occ.hp) + '/' + occ.maxHp + '</div>'
@@ -1317,7 +1326,11 @@ body{
       list.slice().sort(function (x, y) { return y.spd - x.spd; }).forEach(function (u) {
         const row = h('div', 'hprow');
         row.innerHTML = '<span>' + G.TYPES[u.type].name + (u.killed ? '（' + u.killed + '杀）' : '') + '</span>'
-          + '<span>' + Math.max(0, u.hp) + '/' + u.maxHp + ' · ' + u.spd + '速 · 攻 ' + G.effectiveAtk(u) + '</span>';
+          + '<span class="stat">'
+          + '<span title="生命">❤ ' + Math.max(0, u.hp) + '/' + u.maxHp + '</span>'
+          + '<span title="攻击">⚔ ' + G.effectiveAtk(u) + '</span>'
+          + '<span title="速度">👟 ' + u.spd + '</span>'
+          + '</span>';
         hp.appendChild(row);
       });
     });
@@ -1381,7 +1394,7 @@ body{
 
     const head = h('div', 'codex-head');
     head.appendChild(h('b', '', '角色图鉴'));
-    head.appendChild(h('span', 'codex-tip', '可旋转的攻击范围只画一个方向'));
+
     const close = h('button', 'codex-close', '关闭');
     close.id = 'codexClose';
     head.appendChild(close);
@@ -1396,16 +1409,17 @@ body{
       const card = h('div', 'codex-card');
 
       const top = h('div', 'codex-top');
-      top.appendChild(h('span', 'codex-ico', ICONS[t] || ''));
       top.appendChild(h('b', '', T.name));
       card.appendChild(top);
 
       const stats = h('div', 'codex-stats');
       const hpText = (T.start !== undefined && T.start !== T.hp) ? (T.start + '/' + T.hp) : String(T.hp);
-      stats.innerHTML = '<span>生命 <b>' + hpText + '</b></span><span>攻击 <b>' + T.atk + '</b></span><span>速度 <b>' + T.spd + '</b></span>';
+      stats.innerHTML = '<span title="生命">❤ <b>' + hpText + '</b></span>'
+        + '<span title="攻击">⚔ <b>' + T.atk + '</b></span>'
+        + '<span title="速度">👟 <b>' + T.spd + '</b></span>';
       card.appendChild(stats);
 
-      card.appendChild(h('div', 'codex-desc', T.desc || ''));
+      if (T.desc) card.appendChild(h('div', 'codex-desc', T.desc));
 
       let mini = '<div class="mini">';
       for (let r = 0; r < N; r++) {
@@ -1449,7 +1463,91 @@ body{
     const mask = document.getElementById('codexMask');
     if (mask) mask.style.display = 'none';
   }
-  root.UI = { render: render, openCodex: openCodex, closeCodex: closeCodex, buildCodex: buildCodex };
+  /* ---------- 规则介绍 ---------- */
+  const RULES = [
+    {
+      h: '🧩 赛前布阵',
+      items: [
+        '双方轮流放置角色，放满五人后点击「准备」。',
+      ],
+    },
+    {
+      h: '⚡ 出手顺序',
+      items: [
+        '游戏开始后由速度决定出手顺序。',
+        '同速时，总速度更大的一方先行动。',
+        '同一方可以自由选择谁先行动。',
+      ],
+    },
+    {
+      h: '⚔️ 行动流程',
+      items: [
+        '开始行动后，角色可以自由选择释放技能的时机。',
+        '① 角色移动。',
+        '② 角色对攻击范围内的敌人进行攻击，或对友方进行治疗。',
+      ],
+    },
+    {
+      h: '🎯 胜利条件',
+      items: [
+        '双方最终目标是击败敌方五人全员。',
+      ],
+    },
+  ];
+  function buildRules() {
+    const mask = h('div', 'codex-mask');
+    mask.id = 'rulesMask';
+    const panel = h('div', 'codex-panel');
+    mask.appendChild(panel);
+
+    const head = h('div', 'codex-head');
+    head.appendChild(h('b', '', '规则介绍'));
+    head.appendChild(h('span', 'codex-tip', '第一次玩的话，建议从上往下读一遍'));
+    const close = h('button', 'codex-close', '关闭');
+    close.id = 'rulesClose';
+    head.appendChild(close);
+    panel.appendChild(head);
+
+    const list = h('div', 'rules-list');
+    RULES.forEach(function (sec) {
+      const box = h('div', 'rule-sec');
+      box.appendChild(h('div', 'rule-h', sec.h));
+      const ul = h('ul', 'rule-ul');
+      sec.items.forEach(function (line) {
+        const li = h('li', '', line);
+        ul.appendChild(li);
+      });
+      box.appendChild(ul);
+      list.appendChild(box);
+    });
+    panel.appendChild(list);
+    return mask;
+  }
+
+  let rulesBound = false;
+  function openRules() {
+    let mask = document.getElementById('rulesMask');
+    if (!mask) {
+      mask = buildRules();
+      document.body.appendChild(mask);
+    }
+    mask.style.display = 'flex';
+    if (!rulesBound) {
+      rulesBound = true;
+      const c = document.getElementById('rulesClose');
+      if (c) c.onclick = closeRules;
+      mask.onclick = function (e) { if (e.target === mask) closeRules(); };
+      if (document.addEventListener) {
+        document.addEventListener('keydown', function (e) { if (e && e.key === 'Escape') closeRules(); });
+      }
+    }
+  }
+  function closeRules() {
+    const m = document.getElementById('rulesMask');
+    if (m) m.style.display = 'none';
+  }
+
+  root.UI = { render: render, openCodex: openCodex, closeCodex: closeCodex, buildCodex: buildCodex, openRules: openRules, closeRules: closeRules, buildRules: buildRules };
 })(window);
 
 </script>
@@ -1532,6 +1630,7 @@ body{
   };
   document.getElementById('undoBtn').onclick = function () { undoLast(); refresh(); };
   const _cb = document.getElementById('codexBtn'); if (_cb) _cb.onclick = function () { UI.openCodex(); };
+  const _rb = document.getElementById('rulesBtn'); if (_rb) _rb.onclick = function () { UI.openRules(); };
   document.getElementById('restartBtn').onclick = function () { if (confirm('确定重开？')) { G.newGame(); currentTeam = 'A'; refresh(); } };
 
   G.newGame();
