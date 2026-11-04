@@ -1539,5 +1539,16 @@ body{
 })();
 
 </script>
-</body>
+<script>
+window.addEventListener('error', function (e) {
+  var box = document.getElementById('errbox');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'errbox';
+    box.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#5a1720;color:#ffd7d7;font:12px/1.6 monospace;padding:10px 14px;max-height:40%;overflow:auto;border-top:2px solid #ff6b6b';
+    document.body.appendChild(box);
+  }
+  box.textContent = '页面出错：' + (e.message || e.error) + '  @ ' + (e.filename || '') + ':' + (e.lineno || '');
+});
+</script></body>
 </html>
